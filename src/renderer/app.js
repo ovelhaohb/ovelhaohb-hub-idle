@@ -578,7 +578,10 @@ document.addEventListener('keydown', (event) => {
 
 (async function init() {
   setSidebarCollapsed(localStorage.getItem('sidebar-collapsed') === 'true');
-  [state.games, state.reminders] = await Promise.all([window.drakoria.listGames(), window.drakoria.listReminders()]);
+  const [version, games, reminders] = await Promise.all([window.drakoria.getVersion(), window.drakoria.listGames(), window.drakoria.listReminders()]);
+  $('#appVersion').textContent = `Versão ${version}`;
+  state.games = games;
+  state.reminders = reminders;
   renderColors();
   renderList();
   renderReminders();

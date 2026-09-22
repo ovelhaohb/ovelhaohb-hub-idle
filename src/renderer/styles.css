@@ -62,6 +62,7 @@ button, input, label, dialog, .workspace, .sidebar { -webkit-app-region: no-drag
 .security-pill strong { font-size: 11px; font-weight: 600; }.security-pill small { font-size: 9px; color: var(--muted); margin-top: 2px; }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #49d394; box-shadow: 0 0 10px rgba(73,211,148,.8); }
 .security-secondary { padding-top: 4px; color: #8b5cf6; }.security-secondary strong { color: var(--text); }.security-secondary > span { width: 7px; font-size: 10px; }
+.app-version { padding:11px 7px 0; color:#676571; font-size:9px; letter-spacing:.4px; }
 
 .workspace { min-width: 0; position: relative; background: #0b0b10; display: flex; flex-direction: column; }
 .toolbar { height: 54px; display: flex; align-items: center; gap: 10px; padding: 0 15px; border-bottom: 1px solid var(--line); background: #101015; }

@@ -35,4 +35,6 @@ Para gerar um pacote local, execute `npm run dist`.
 
 As releases oficiais são criadas pelo GitHub Actions ao publicar uma tag no formato `v*`. O fluxo gera artefatos nativos para Windows, Linux e macOS e os anexa à release correspondente no GitHub.
 
+A versão em uso aparece no rodapé da barra lateral. Toda atualização publicada incrementa a versão do aplicativo e recebe uma tag correspondente no GitHub.
+
 Os backups de desenvolvimento são mantidos fora do repositório para não incluir dados pessoais ou arquivos de sessão no histórico do projeto.

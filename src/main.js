@@ -269,6 +269,11 @@ function normalizeUrl(raw) {
 }
 
 function registerIpc() {
+  ipcMain.handle('app:version', (event) => {
+    assertHubSender(event);
+    return app.getVersion();
+  });
+
   ipcMain.handle('games:list', (event) => {
     assertHubSender(event);
     return readGames().map(publicGame);

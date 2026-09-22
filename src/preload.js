@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('drakoria', {
+  getVersion: () => ipcRenderer.invoke('app:version'),
   listGames: () => ipcRenderer.invoke('games:list'),
   saveGame: (game) => ipcRenderer.invoke('games:save', game),
   deleteGame: (id, clearSession = false) => ipcRenderer.invoke('games:delete', id, clearSession),
