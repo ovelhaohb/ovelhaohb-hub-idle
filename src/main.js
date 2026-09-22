@@ -120,16 +120,18 @@ function initializeAnalytics() {
 
 function track(event, properties = {}) {
   if (!posthog) return;
-  void posthog.capture({
-    distinctId: installationId(),
-    event,
-    properties: {
-      app_version: app.getVersion(),
-      platform: process.platform,
-      architecture: process.arch,
-      ...properties
-    }
-  }).catch(() => {});
+  try {
+    posthog.capture({
+      distinctId: installationId(),
+      event,
+      properties: {
+        app_version: app.getVersion(),
+        platform: process.platform,
+        architecture: process.arch,
+        ...properties
+      }
+    });
+  } catch {}
 }
 
 function readWindowState() {
@@ -689,6 +691,11 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+}).catch((error) => {
+  try {
+    fs.writeFileSync(path.join(app.getPath('userData'), 'startup-error.log'), `${new Date().toISOString()}\n${error.stack || error.message}\n`, 'utf8');
+  } catch {}
+  app.quit();
 });
 
 app.on('window-all-closed', () => {
