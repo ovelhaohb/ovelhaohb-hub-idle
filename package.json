@@ -1,7 +1,7 @@
 {
   "name": "ovelhaohb-idles-hub",
-  "version": "1.0.0",
-  "description": "Um navegador leve e organizado para seus jogos idle.",
+  "version": "1.1.0",
+  "description": "Hub desktop privado para centralizar, acompanhar e jogar seus jogos idle de navegador.",
   "main": "src/main.js",
   "author": "OvelhaoHb",
   "license": "MIT",
@@ -9,7 +9,8 @@
     "start": "node scripts/start.js",
     "dev": "node scripts/start.js",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "release": "electron-builder --publish always"
   },
   "devDependencies": {
     "electron": "^44.3.0",
@@ -38,6 +39,13 @@
         "portable",
         "nsis"
       ]
+    },
+    "mac": {
+      "target": ["dmg", "zip"]
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Game"
     },
     "nsis": {
       "oneClick": false,

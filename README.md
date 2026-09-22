@@ -1,61 +1,38 @@
 # OvelhaoHb Idles Hub
 
-Um hub desktop leve para organizar e jogar jogos idle de navegador. Cada jogo usa uma sessão de navegador persistente e isolada; os dados de acesso são armazenados localmente e criptografados pelo cofre do sistema operacional.
+Um hub desktop privado para reunir jogos idle de navegador em uma única aplicação. Ele mantém cada jogo em uma sessão isolada, preserva logins localmente e oferece recursos para acompanhar a rotina de jogo sem abrir várias janelas do navegador.
 
-## Desempenho e continuidade
+## Recursos
 
-- Os timers dos jogos continuam ativos quando a janela está minimizada ou coberta.
-- As páginas só são carregadas quando o jogo é aberto pela primeira vez na sessão.
-- Cache em disco limitado a 96 MB e cache de mídia limitado a 32 MB por contexto Chromium.
-- Limpeza preventiva de cache a cada sete dias, sem apagar cookies ou logins.
-- Recuperação automática de processos de jogo que travarem, limitada para evitar loops.
-- Bandeja do Windows: fechar a janela mantém o hub e os jogos ativos; use **Sair** no ícone da bandeja para encerrar.
-- A janela, o zoom e os favoritos de cada jogo são restaurados localmente.
-
-## Atalhos e biblioteca
-
-- `Ctrl+Tab` e `Ctrl+Shift+Tab`: avançar ou voltar entre os jogos.
-- `Ctrl` + `+`, `Ctrl` + `-` e `Ctrl` + `0`: ajustar ou restaurar o zoom do jogo ativo.
-- Use a busca da barra lateral e a estrela na barra do jogo para organizar os favoritos.
-- Ao remover um jogo, a sessão fica preservada por padrão. A exclusão dos cookies e dados locais exige confirmação separada.
-
-## Cópias de segurança
-
-- Antes de cada atualização de desenvolvimento, as cópias do projeto são criadas em `D:\ProjetosVS\Drakoria Tab Backups`.
-- O arquivo de biblioteca do aplicativo mantém uma cópia `games.json.bak` antes de cada gravação.
-
-## VS Code
-
-Ao abrir esta pasta, o VS Code sugere ESLint, Prettier, Error Lens, Code Spell Checker e GitLens. As recomendações ficam em `.vscode/extensions.json`; a formatação ao salvar fica em `.vscode/settings.json`.
-
-## Executar
-
-```powershell
-npm.cmd install
-npm.cmd start
-```
-
-### Abrir diretamente pelo VS Code
-
-1. Abra esta pasta no VS Code.
-2. Pressione `Ctrl+Shift+B`.
-3. Escolha **Abrir OvelhaoHb Idles Hub**.
-
-Também é possível pressionar `F5` e selecionar **Abrir OvelhaoHb Idles Hub** na área **Executar e Depurar**. Isso executa o código-fonte com o Electron oficial das dependências, sem instalar o aplicativo e sem criar uma exclusão no Windows Defender.
-
-## Gerar instalador para Windows
-
-```powershell
-npm.cmd run dist
-```
-
-O instalador será criado na pasta `release`.
-
-O mesmo comando também gera uma versão portátil em um único arquivo `.exe`. Ela pode ser executada diretamente, sem instalação.
+- Sessões persistentes e isoladas por jogo.
+- Credenciais protegidas pelo cofre do sistema operacional.
+- Controle de som, zoom, favoritos, busca e atalhos entre jogos.
+- Lembretes recorrentes com notificações nativas do sistema.
+- Notas locais para estratégias, metas, links e checklists de cada jogo.
+- Perfil por jogo para manter a atividade em segundo plano ou economizar recursos.
+- Diagnóstico de processo e consumo de memória dos jogos carregados.
+- Recuperação limitada de processos que pararem inesperadamente.
 
 ## Privacidade
 
-- URLs, nomes e cores ficam no arquivo local de configuração do aplicativo.
-- Usuário e senha são criptografados com `safeStorage` do Electron (DPAPI no Windows).
-- Cada jogo recebe sua própria partição persistente para cookies e armazenamento da sessão.
-- Nenhum dado é enviado a um servidor do OvelhaoHb Idles Hub.
+O hub não envia dados a servidores próprios. URLs, preferências, lembretes e notas ficam no perfil local do aplicativo. Usuários e senhas usam a proteção fornecida pelo sistema operacional. Cada jogo tem seu próprio armazenamento de cookies e sessão.
+
+## Uso
+
+1. Instale as dependências com `npm install`.
+2. Execute `npm start`.
+3. Adicione um jogo, informe o endereço e, se desejar, salve as credenciais para preenchimento manual ou automático.
+
+Atalhos úteis: `Ctrl+Tab` e `Ctrl+Shift+Tab` trocam de jogo; `Ctrl` + `+`, `Ctrl` + `-` e `Ctrl` + `0` ajustam o zoom. Fechar a janela mantém o hub ativo na bandeja do sistema; use **Sair** no menu da bandeja para encerrar completamente.
+
+## Desenvolvimento
+
+O VS Code recomenda ESLint, Prettier, Error Lens, Code Spell Checker e GitLens ao abrir o projeto. Pressione `F5` ou use a tarefa **Abrir OvelhaoHb Idles Hub** para executar o código-fonte.
+
+Para gerar um pacote local, execute `npm run dist`.
+
+## Releases
+
+As releases oficiais são criadas pelo GitHub Actions ao publicar uma tag no formato `v*`. O fluxo gera artefatos nativos para Windows, Linux e macOS e os anexa à release correspondente no GitHub.
+
+Os backups de desenvolvimento são mantidos fora do repositório para não incluir dados pessoais ou arquivos de sessão no histórico do projeto.
