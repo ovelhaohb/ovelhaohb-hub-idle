@@ -121,10 +121,12 @@ function sameOrigin(first, second) {
 }
 
 async function fillGameCredentials(game, view = currentView()) {
-  if (!game || !view || (!game.username && !game.password)) return false;
+  if (!game || !view || !game.hasCredentials) return false;
   const url = view.getURL();
   if (!sameOrigin(url, game.url)) return false;
-  const payload = JSON.stringify({ username: game.username || '', password: game.password || '' });
+  let credentials;
+  try { credentials = await window.drakoria.getCredentials(game.id); } catch { return false; }
+  const payload = JSON.stringify(credentials);
   try {
     const filled = await view.executeJavaScript(`(() => {
       const saved = ${payload};
@@ -245,7 +247,7 @@ function openGame(id) {
 
 function currentView() { return document.querySelector('.game-view.active'); }
 
-function openDialog(game = null, credentialsOnly = false) {
+async function openDialog(game = null, credentialsOnly = false) {
   currentView()?.blur();
   els.form.reset();
   $('#formError').textContent = '';
@@ -254,8 +256,12 @@ function openDialog(game = null, credentialsOnly = false) {
   $('#gameId').value = game?.id || '';
   $('#gameName').value = game?.name || '';
   $('#gameUrl').value = game?.url || '';
-  $('#gameUsername').value = game?.username || '';
-  $('#gamePassword').value = game?.password || '';
+  let credentials = { username: '', password: '' };
+  if (game?.hasCredentials) {
+    try { credentials = await window.drakoria.getCredentials(game.id); } catch {}
+  }
+  $('#gameUsername').value = credentials.username || '';
+  $('#gamePassword').value = credentials.password || '';
   $('#gameAutoFill').checked = Boolean(game?.autoFill);
   $('#gameKeepActive').checked = game?.keepActive !== false;
   state.selectedColor = game?.color || colors[0];
@@ -384,12 +390,17 @@ async function refreshReminders() {
   renderReminders();
 }
 
-function showCredentials() {
+async function showCredentials() {
   const game = activeGame();
   if (!game) return;
+  let credentials = { username: '', password: '' };
+  if (game.hasCredentials) {
+    try { credentials = await window.drakoria.getCredentials(game.id); } catch { return showToast('Não foi possível acessar as credenciais'); }
+  }
   $('#loginGame').textContent = game.name;
-  $('#loginUsername').textContent = game.username || 'Não informado';
-  $('#loginPassword').textContent = game.password ? '••••••••••' : 'Não informada';
+  $('#loginUsername').textContent = credentials.username || 'Não informado';
+  $('#loginPassword').textContent = credentials.password ? '••••••••••' : 'Não informada';
+  els.popover.dataset.password = credentials.password || '';
   state.passwordVisible = false;
   els.popover.classList.toggle('hidden');
 }
@@ -523,7 +534,7 @@ $('#external').addEventListener('click', () => { const view = currentView(); if 
 $('#credentials').addEventListener('click', showCredentials);
 $('#fillNow').addEventListener('click', async () => {
   const game = activeGame();
-  if (!game?.username && !game?.password) return showToast('Nenhuma credencial salva');
+  if (!game?.hasCredentials) return showToast('Nenhuma credencial salva');
   const filled = await fillGameCredentials(game);
   els.popover.classList.add('hidden');
   showToast(filled ? 'Credenciais preenchidas' : 'Abra a página de login do jogo');
@@ -539,17 +550,19 @@ $('#gameSearch').addEventListener('input', (event) => {
 document.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', async () => {
   const game = activeGame();
   const field = button.dataset.copy;
-  const value = game?.[field] || '';
+  if (!game?.hasCredentials) return showToast('Nenhum dado salvo');
+  let value = '';
+  try { value = (await window.drakoria.getCredentials(game.id))[field] || ''; } catch {}
   if (!value) return showToast('Nenhum dado salvo');
   await navigator.clipboard.writeText(value);
   showToast(field === 'password' ? 'Senha copiada' : 'Usuário copiado');
 }));
 
 $('#loginPassword').addEventListener('click', () => {
-  const game = activeGame();
-  if (!game?.password) return;
+  const password = els.popover.dataset.password || '';
+  if (!password) return;
   state.passwordVisible = !state.passwordVisible;
-  $('#loginPassword').textContent = state.passwordVisible ? game.password : '••••••••••';
+  $('#loginPassword').textContent = state.passwordVisible ? password : '••••••••••';
 });
 
 $('#deleteGame').addEventListener('click', async () => {

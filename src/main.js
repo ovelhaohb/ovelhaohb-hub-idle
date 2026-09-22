@@ -190,8 +190,7 @@ function publicGame(game) {
     id: game.id,
     name: game.name,
     url: game.url,
-    username: decrypt(game.username),
-    password: decrypt(game.password),
+    hasCredentials: Boolean(game.username || game.password),
     autoFill: Boolean(game.autoFill),
     muted: Boolean(game.muted),
     keepActive: game.keepActive !== false,
@@ -316,6 +315,14 @@ function registerIpc() {
     return readGames().map(publicGame);
   });
 
+  ipcMain.handle('games:credentials', (event, rawId) => {
+    assertHubSender(event);
+    const id = normalizeId(rawId);
+    const game = readGames().find((entry) => entry.id === id);
+    if (!game) throw new Error('Jogo não encontrado.');
+    return { username: decrypt(game.username), password: decrypt(game.password) };
+  });
+
   ipcMain.handle('reminders:list', (event) => {
     assertHubSender(event);
     return readReminders();
@@ -365,13 +372,15 @@ function registerIpc() {
     assertHubSender(event);
     if (!input || typeof input !== 'object') throw new Error('Dados de jogo inválidos.');
     const games = readGames();
+    const index = input.id ? games.findIndex((game) => game.id === input.id) : -1;
+    const existing = index >= 0 ? games[index] : null;
     const now = new Date().toISOString();
     const clean = {
       id: input.id ? normalizeId(input.id) : crypto.randomUUID(),
       name: String(input.name || '').trim(),
       url: normalizeUrl(String(input.url || '').trim()),
-      username: encrypt(String(input.username || '')),
-      password: encrypt(String(input.password || '')),
+      username: Object.hasOwn(input, 'username') ? encrypt(String(input.username || '')) : (existing?.username || ''),
+      password: Object.hasOwn(input, 'password') ? encrypt(String(input.password || '')) : (existing?.password || ''),
       autoFill: Boolean(input.autoFill),
       muted: Boolean(input.muted),
       keepActive: input.keepActive !== false,
@@ -382,8 +391,8 @@ function registerIpc() {
       createdAt: input.createdAt || now
     };
     if (!clean.name) throw new Error('Informe um nome para o jogo.');
-    const index = games.findIndex((game) => game.id === clean.id);
-    if (index >= 0) games[index] = clean;
+    const savedIndex = games.findIndex((game) => game.id === clean.id);
+    if (savedIndex >= 0) games[savedIndex] = clean;
     else games.push(clean);
     writeGames(games);
     return publicGame(clean);

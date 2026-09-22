@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('drakoria', {
   installUpdate: () => ipcRenderer.invoke('updates:install'),
   onUpdateStatus: (callback) => ipcRenderer.on('updates:status', (_event, status) => callback(status)),
   listGames: () => ipcRenderer.invoke('games:list'),
+  getCredentials: (id) => ipcRenderer.invoke('games:credentials', id),
   saveGame: (game) => ipcRenderer.invoke('games:save', game),
   deleteGame: (id, clearSession = false) => ipcRenderer.invoke('games:delete', id, clearSession),
   getDiagnostics: () => ipcRenderer.invoke('games:diagnostics'),
