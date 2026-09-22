@@ -78,6 +78,10 @@ function notesFile() {
   return path.join(app.getPath('userData'), 'game-notes.json');
 }
 
+function companionFile() {
+  return path.join(app.getPath('userData'), 'game-companion.json');
+}
+
 function windowStateFile() {
   return path.join(app.getPath('userData'), 'window-state.json');
 }
@@ -147,6 +151,21 @@ function writeNotes(notes) {
   const backup = `${target}.bak`;
   if (fs.existsSync(target)) fs.copyFileSync(target, backup);
   fs.writeFileSync(temporary, JSON.stringify(notes, null, 2), 'utf8');
+  fs.renameSync(temporary, target);
+}
+
+function readCompanion() {
+  try {
+    const data = JSON.parse(fs.readFileSync(companionFile(), 'utf8'));
+    return data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+  } catch { return {}; }
+}
+
+function writeCompanion(data) {
+  const target = companionFile();
+  const temporary = `${target}.${process.pid}.tmp`;
+  if (fs.existsSync(target)) fs.copyFileSync(target, `${target}.bak`);
+  fs.writeFileSync(temporary, JSON.stringify(data, null, 2), 'utf8');
   fs.renameSync(temporary, target);
 }
 
@@ -392,6 +411,24 @@ function registerIpc() {
     else delete notes[gameId];
     writeNotes(notes);
     return true;
+  });
+
+  ipcMain.handle('companion:get', (event, rawGameId) => {
+    assertHubSender(event);
+    const gameId = normalizeId(rawGameId);
+    const value = readCompanion()[gameId] || {};
+    return { tasks: Array.isArray(value.tasks) ? value.tasks : [], links: Array.isArray(value.links) ? value.links : [] };
+  });
+
+  ipcMain.handle('companion:save', (event, rawGameId, input) => {
+    assertHubSender(event);
+    const gameId = normalizeId(rawGameId);
+    const tasks = Array.isArray(input?.tasks) ? input.tasks.slice(0, 100).map((task) => ({ text: String(task.text || '').trim().slice(0, 160), done: Boolean(task.done) })).filter((task) => task.text) : [];
+    const links = Array.isArray(input?.links) ? input.links.slice(0, 30).map((link) => ({ label: String(link.label || '').trim().slice(0, 80), url: normalizeUrl(String(link.url || '').trim()) })).filter((link) => link.label) : [];
+    const data = readCompanion();
+    data[gameId] = { tasks, links };
+    writeCompanion(data);
+    return data[gameId];
   });
 
   ipcMain.handle('games:save', (event, input) => {

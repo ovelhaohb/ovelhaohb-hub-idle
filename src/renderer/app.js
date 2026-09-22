@@ -1,7 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 const colors = ['#8b5cf6', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ef476f'];
 
-const state = { games: [], activeId: null, selectedColor: colors[0], passwordVisible: false, recovery: new Map(), search: '', reminders: [] };
+const state = { games: [], activeId: null, selectedColor: colors[0], passwordVisible: false, recovery: new Map(), search: '', reminders: [], companion: { tasks: [], links: [] } };
 const els = {
   list: $('#gameList'), count: $('#gameCount'), welcome: $('#welcome'), toolbar: $('#toolbar'),
   stack: $('#webviewStack'), address: $('#addressText'), dialog: $('#gameDialog'), form: $('#gameForm'),
@@ -309,12 +309,21 @@ async function openNotes() {
   $('#notesGameName').textContent = game.name;
   $('#notesError').textContent = '';
   try {
-    $('#gameNotes').value = await window.drakoria.getNote(game.id);
+    const [note, companion] = await Promise.all([window.drakoria.getNote(game.id), window.drakoria.getCompanion(game.id)]);
+    $('#gameNotes').value = note;
+    state.companion = companion;
+    renderCompanion();
     $('#notesDialog').showModal();
     setTimeout(() => $('#gameNotes').focus(), 50);
   } catch {
     showToast('Não foi possível carregar as notas');
   }
+}
+
+function renderCompanion() {
+  const tasks = $('#taskList'); const links = $('#linkList');
+  tasks.replaceChildren(...state.companion.tasks.map((task, index) => { const row = document.createElement('div'); row.className = 'companion-row'; const check = document.createElement('input'); check.type = 'checkbox'; check.checked = task.done; check.addEventListener('change', () => { task.done = check.checked; }); const text = document.createElement('span'); text.textContent = task.text; const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '×'; remove.onclick = () => { state.companion.tasks.splice(index, 1); renderCompanion(); }; row.append(check, text, remove); return row; }));
+  links.replaceChildren(...state.companion.links.map((link, index) => { const row = document.createElement('div'); row.className = 'companion-row'; const anchor = document.createElement('a'); anchor.href = link.url; anchor.textContent = link.label; anchor.target = '_blank'; const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '×'; remove.onclick = () => { state.companion.links.splice(index, 1); renderCompanion(); }; row.append(anchor, remove); return row; }));
 }
 
 function formatMemory(kilobytes) {
@@ -416,6 +425,8 @@ $('#reminders').addEventListener('click', async () => {
 $('#closeReminders').addEventListener('click', () => { els.reminderDialog.close(); currentView()?.focus(); });
 $('#dismissUpdate').addEventListener('click', () => $('#updateBanner').classList.add('hidden'));
 $('#notes').addEventListener('click', openNotes);
+$('#addTask').addEventListener('click', () => { const text = $('#taskText').value.trim(); if (!text) return; state.companion.tasks.push({ text, done: false }); $('#taskText').value = ''; renderCompanion(); });
+$('#addLink').addEventListener('click', () => { const label = $('#linkLabel').value.trim(); const url = $('#linkUrl').value.trim(); if (!label || !url) return showToast('Informe nome e endereço do link'); state.companion.links.push({ label, url }); $('#linkLabel').value = ''; $('#linkUrl').value = ''; renderCompanion(); });
 $('#diagnostics').addEventListener('click', async () => { $('#diagnosticsDialog').showModal(); await renderDiagnostics(); });
 $('#closeDiagnostics').addEventListener('click', () => { $('#diagnosticsDialog').close(); currentView()?.focus(); });
 $('#refreshDiagnostics').addEventListener('click', renderDiagnostics);
@@ -504,6 +515,7 @@ $('#notesForm').addEventListener('submit', async (event) => {
   if (!game) return;
   try {
     await window.drakoria.saveNote(game.id, $('#gameNotes').value);
+    await window.drakoria.saveCompanion(game.id, state.companion);
     $('#notesDialog').close();
     currentView()?.focus();
     showToast('Notas salvas');

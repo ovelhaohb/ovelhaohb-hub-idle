@@ -111,6 +111,8 @@
       <form id="notesForm">
         <div class="dialog-head"><div><p class="eyebrow">ANOTAÇÕES</p><h2 id="notesGameName">Notas do jogo</h2></div><button type="button" class="close-button" id="closeNotes">×</button></div>
         <label class="game-details-field">Sua estratégia, metas e links<textarea id="gameNotes" maxlength="10000" placeholder="Ex.: próxima meta, link da wiki, lista de recursos..."></textarea></label>
+        <div class="companion-section"><strong>Checklist</strong><div class="companion-add"><input id="taskText" maxlength="160" placeholder="Nova tarefa" /><button type="button" id="addTask">Adicionar</button></div><div id="taskList"></div></div>
+        <div class="companion-section"><strong>Links úteis</strong><div class="companion-add"><input id="linkLabel" maxlength="80" placeholder="Nome" /><input id="linkUrl" placeholder="https://..." /><button type="button" id="addLink">Adicionar</button></div><div id="linkList"></div></div>
         <p class="form-error" id="notesError"></p>
         <div class="dialog-actions"><button type="button" class="secondary-button" id="cancelNotes">Cancelar</button><button type="submit" class="primary-button">Salvar notas</button></div>
       </form>

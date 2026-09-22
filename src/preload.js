@@ -19,5 +19,7 @@ contextBridge.exposeInMainWorld('drakoria', {
   deleteReminder: (id) => ipcRenderer.invoke('reminders:delete', id),
   onRemindersChanged: (callback) => ipcRenderer.on('reminders:changed', callback),
   getNote: (gameId) => ipcRenderer.invoke('notes:get', gameId),
-  saveNote: (gameId, value) => ipcRenderer.invoke('notes:save', gameId, value)
+  saveNote: (gameId, value) => ipcRenderer.invoke('notes:save', gameId, value),
+  getCompanion: (gameId) => ipcRenderer.invoke('companion:get', gameId),
+  saveCompanion: (gameId, value) => ipcRenderer.invoke('companion:save', gameId, value)
 });
