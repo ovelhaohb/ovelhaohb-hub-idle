@@ -163,6 +163,7 @@ function createWebview(game) {
   view.addEventListener('dom-ready', () => {
     const latestGame = currentGame(game.id);
     try { view.setAudioMuted(Boolean(latestGame?.muted)); } catch {}
+    try { view.setBackgroundThrottling(latestGame?.keepActive === false); } catch {}
     try { view.setZoomFactor(latestGame?.zoomFactor || 1); } catch {}
     view.executeJavaScript(`(() => {
       const icon = document.querySelector('link[rel~="icon"]')?.href;
@@ -256,6 +257,7 @@ function openDialog(game = null, credentialsOnly = false) {
   $('#gameUsername').value = game?.username || '';
   $('#gamePassword').value = game?.password || '';
   $('#gameAutoFill').checked = Boolean(game?.autoFill);
+  $('#gameKeepActive').checked = game?.keepActive !== false;
   state.selectedColor = game?.color || colors[0];
   renderColors();
   els.popover.classList.add('hidden');
@@ -420,6 +422,7 @@ els.form.addEventListener('submit', async (event) => {
       password: $('#gamePassword').value,
       autoFill: $('#gameAutoFill').checked,
       muted: existing?.muted || false,
+      keepActive: $('#gameKeepActive').checked,
       favorite: existing?.favorite || false,
       zoomFactor: existing?.zoomFactor || 1,
       icon: existing?.icon || '',
