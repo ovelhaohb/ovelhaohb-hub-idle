@@ -1,6 +1,6 @@
 {
   "name": "ovelhaohb-idles-hub",
-  "version": "1.1.7",
+  "version": "1.1.8",
   "description": "Hub desktop privado para centralizar, acompanhar e jogar seus jogos idle de navegador.",
   "main": "src/main.js",
   "author": "OvelhaoHb",
@@ -52,8 +52,7 @@
     },
     "linux": {
       "target": [
-        "AppImage",
-        "deb"
+        "AppImage"
       ],
       "category": "Game"
     },
