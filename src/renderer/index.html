@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: https: http:; font-src 'self'; frame-src https: http:;" />
+    <title>OvelhaoHb Idles Hub</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="title-drag">
+      <button class="sidebar-toggle" id="toggleSidebar" aria-label="Recolher barra lateral" title="Recolher barra lateral">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="3" width="15" height="14" rx="2"/><path d="M7 3v14M12.5 7.5 10 10l2.5 2.5"/></svg>
+      </button>
+      <div class="brand-mini"><span class="mini-sheep">●</span> OVELHAOHB IDLES HUB</div>
+    </div>
+
+    <main class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 64 64"><path class="sheep-wool" d="M18 48c-6 0-10-4-10-10 0-4 2-7 5-9-1-2-1-4-1-6 0-6 5-11 11-11 2-5 7-8 13-8 7 0 12 4 14 10 5 1 9 6 9 12 0 4-2 8-6 10 0 7-5 12-12 12H18Z"/><path class="sheep-face" d="M35 20c8 0 14 6 14 14 0 9-6 15-14 15s-14-6-14-15c0-8 6-14 14-14Z"/><path class="sheep-ear" d="M22 26c-7-1-10 2-9 7 5 2 9 1 11-2m24-5c7-1 10 2 9 7-5 2-9 1-11-2"/><circle cx="30" cy="34" r="2"/><circle cx="40" cy="34" r="2"/><path class="sheep-nose" d="M32 41c2 2 4 2 6 0"/></svg>
+          </div>
+          <div><strong>OvelhaoHb</strong><span>IDLES HUB</span></div>
+        </div>
+
+        <button class="add-button" id="addGame"><span>＋</span> Adicionar jogo</button>
+
+        <div class="section-label"><span>SEUS JOGOS</span><span id="gameCount">0</span></div>
+        <label class="game-search"><span aria-hidden="true">⌕</span><input id="gameSearch" type="search" placeholder="Buscar jogo" autocomplete="off" /></label>
+        <nav class="game-list" id="gameList"></nav>
+
+        <div class="sidebar-foot">
+          <div class="security-pill"><span class="status-dot"></span><div><strong>Rodando em segundo plano</strong><small>Sessões sempre ativas</small></div></div>
+          <div class="security-pill security-secondary"><span>◇</span><div><strong>Cofre protegido</strong><small>Criptografia do Windows</small></div></div>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <header class="toolbar hidden" id="toolbar">
+          <div class="nav-actions">
+            <button class="icon-button" id="back" aria-label="Voltar">←</button>
+            <button class="icon-button" id="forward" aria-label="Avançar">→</button>
+          <button class="icon-button" id="reload" aria-label="Recarregar">↻</button>
+          <button class="icon-button" id="zoomOut" aria-label="Diminuir zoom" title="Diminuir zoom">−</button>
+          <button class="icon-button zoom-label" id="zoomReset" aria-label="Restaurar zoom" title="Restaurar zoom">100%</button>
+          <button class="icon-button" id="zoomIn" aria-label="Aumentar zoom" title="Aumentar zoom">+</button>
+          </div>
+          <div class="address"><span class="lock-icon">◆</span><span id="addressText"></span></div>
+          <button class="icon-button" id="mute" aria-label="Silenciar aba" title="Silenciar aba">🔊</button>
+          <button class="icon-button" id="reminders" aria-label="Abrir lembretes" title="Lembretes">⏱</button>
+          <button class="icon-button" id="notes" aria-label="Abrir notas do jogo" title="Notas do jogo">▤</button>
+          <button class="credentials-button" id="credentials">⌘ <span>Login</span></button>
+          <button class="icon-button" id="favorite" aria-label="Favoritar jogo" title="Favoritar jogo">☆</button>
+          <button class="icon-button" id="external" aria-label="Abrir no navegador">↗</button>
+        </header>
+
+        <section class="welcome" id="welcome">
+          <div class="aurora aurora-one"></div><div class="aurora aurora-two"></div>
+          <div class="welcome-content">
+            <div class="hero-gem">
+              <svg viewBox="0 0 64 64" aria-hidden="true"><path class="sheep-wool" d="M18 48c-6 0-10-4-10-10 0-4 2-7 5-9-1-2-1-4-1-6 0-6 5-11 11-11 2-5 7-8 13-8 7 0 12 4 14 10 5 1 9 6 9 12 0 4-2 8-6 10 0 7-5 12-12 12H18Z"/><path class="sheep-face" d="M35 20c8 0 14 6 14 14 0 9-6 15-14 15s-14-6-14-15c0-8 6-14 14-14Z"/><circle cx="30" cy="34" r="2"/><circle cx="40" cy="34" r="2"/><path class="sheep-nose" d="M32 41c2 2 4 2 6 0"/></svg>
+            </div>
+            <p class="eyebrow">SEU UNIVERSO IDLE</p>
+            <h1>Todos os seus mundos.<br><em>Um só lugar.</em></h1>
+            <p class="subtitle">Organize seus jogos, mantenha suas sessões e entre na ação sem perder tempo.</p>
+            <button class="hero-button" id="welcomeAdd">Adicionar meu primeiro jogo <span>→</span></button>
+            <div class="feature-row">
+              <div><span>◈</span><p><strong>Sessões separadas</strong><small>Cada mundo no seu espaço</small></p></div>
+              <div><span>◇</span><p><strong>Acesso rápido</strong><small>Um clique para jogar</small></p></div>
+              <div><span>⬡</span><p><strong>Dados protegidos</strong><small>Criptografia local</small></p></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="webview-stack" id="webviewStack"></section>
+        <div class="loading-bar" id="loadingBar"></div>
+      </section>
+    </main>
+
+    <dialog id="gameDialog">
+      <form method="dialog" id="gameForm">
+        <div class="dialog-head"><div><p class="eyebrow">NOVO ATALHO</p><h2 id="dialogTitle">Adicionar jogo</h2></div><button type="button" class="close-button" id="closeDialog">×</button></div>
+        <input type="hidden" id="gameId" />
+        <label class="game-details-field">Nome do jogo<input id="gameName" maxlength="40" placeholder="Ex.: Melvor Idle" required /></label>
+        <label class="game-details-field">Endereço do jogo<input id="gameUrl" type="text" placeholder="https://..." required /></label>
+        <div class="field-row">
+          <label>Usuário ou e-mail<input id="gameUsername" autocomplete="off" placeholder="Opcional" /></label>
+          <label>Senha<input id="gamePassword" type="password" autocomplete="new-password" placeholder="Opcional" /></label>
+        </div>
+        <label class="autofill-option"><input id="gameAutoFill" type="checkbox" /> Preencher automaticamente ao abrir este jogo</label>
+        <div class="color-field"><span>Cor do atalho</span><div id="colorOptions"></div></div>
+        <p class="form-error" id="formError"></p>
+        <div class="dialog-actions"><button type="button" class="secondary-button" id="cancelDialog">Cancelar</button><button type="submit" class="primary-button">Salvar jogo</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="notesDialog">
+      <form id="notesForm">
+        <div class="dialog-head"><div><p class="eyebrow">ANOTAÇÕES</p><h2 id="notesGameName">Notas do jogo</h2></div><button type="button" class="close-button" id="closeNotes">×</button></div>
+        <label class="game-details-field">Sua estratégia, metas e links<textarea id="gameNotes" maxlength="10000" placeholder="Ex.: próxima meta, link da wiki, lista de recursos..."></textarea></label>
+        <p class="form-error" id="notesError"></p>
+        <div class="dialog-actions"><button type="button" class="secondary-button" id="cancelNotes">Cancelar</button><button type="submit" class="primary-button">Salvar notas</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="reminderDialog">
+      <form id="reminderForm">
+        <div class="dialog-head"><div><p class="eyebrow">LEMBRETES</p><h2>Seu ritmo de jogo</h2></div><button type="button" class="close-button" id="closeReminders">×</button></div>
+        <label class="game-details-field">O que lembrar?<input id="reminderTitle" maxlength="80" placeholder="Ex.: Coletar recompensa diária" required /></label>
+        <label class="game-details-field">Repetir a cada<input id="reminderInterval" type="number" min="1" max="10080" value="60" required /><small>minutos (máximo: 7 dias)</small></label>
+        <p class="form-error" id="reminderError"></p>
+        <div class="dialog-actions"><button type="submit" class="primary-button">Adicionar lembrete</button></div>
+      </form>
+      <div class="reminder-list" id="reminderList"></div>
+    </dialog>
+
+    <div class="popover hidden" id="loginPopover">
+      <div class="popover-head"><div><span>ACESSO SALVO</span><strong id="loginGame"></strong></div><button id="editGame">Editar</button></div>
+      <label>Usuário</label><div class="copy-row"><span id="loginUsername"></span><button data-copy="username">Copiar</button></div>
+      <label>Senha</label><div class="copy-row"><span id="loginPassword">••••••••••</span><button data-copy="password">Copiar</button></div>
+      <button class="fill-button" id="fillNow">Preencher no jogo aberto</button>
+      <button class="update-login-button" id="updateLogin">Atualizar login</button>
+      <button class="delete-button" id="deleteGame">Remover jogo</button>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <script src="app.js"></script>
+  </body>
+</html>

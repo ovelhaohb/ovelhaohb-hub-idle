@@ -1,0 +1,47 @@
+{
+  "name": "ovelhaohb-idles-hub",
+  "version": "1.0.0",
+  "description": "Um navegador leve e organizado para seus jogos idle.",
+  "main": "src/main.js",
+  "author": "OvelhaoHb",
+  "license": "MIT",
+  "scripts": {
+    "start": "node scripts/start.js",
+    "dev": "node scripts/start.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^44.3.0",
+    "electron-builder": "^26.0.12",
+    "sharp": "^0.35.4"
+  },
+  "build": {
+    "appId": "com.ovelhaohb.idleshub",
+    "productName": "OvelhaoHb Idles Hub",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
