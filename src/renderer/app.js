@@ -1,7 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 const colors = ['#8b5cf6', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ef476f'];
 
-const state = { games: [], activeId: null, selectedColor: colors[0], passwordVisible: false, recovery: new Map(), search: '', reminders: [], companion: { tasks: [], links: [] } };
+const state = { games: [], activeId: null, splitId: null, selectedColor: colors[0], passwordVisible: false, recovery: new Map(), search: '', reminders: [], companion: { tasks: [], links: [] } };
 const els = {
   list: $('#gameList'), count: $('#gameCount'), welcome: $('#welcome'), toolbar: $('#toolbar'),
   stack: $('#webviewStack'), address: $('#addressText'), dialog: $('#gameDialog'), form: $('#gameForm'),
@@ -233,9 +233,14 @@ function openGame(id) {
   els.welcome.classList.add('hidden');
   els.toolbar.classList.remove('hidden');
   els.stack.style.display = 'block';
-  document.querySelectorAll('.game-view').forEach((view) => view.classList.remove('active'));
+  document.querySelectorAll('.game-view').forEach((view) => view.classList.remove('active', 'split-primary'));
   const view = createWebview(game);
-  view.classList.add('active');
+  view.classList.add('active', 'split-primary');
+  if (state.splitId) {
+    const secondary = createWebview(state.games.find((entry) => entry.id === state.splitId));
+    secondary.classList.add('active', 'split-secondary');
+    els.stack.classList.add('split');
+  }
   requestAnimationFrame(() => view.focus());
   updateAddress(view);
   updateMuteButton();
@@ -245,7 +250,7 @@ function openGame(id) {
   renderList();
 }
 
-function currentView() { return document.querySelector('.game-view.active'); }
+function currentView() { return document.querySelector('.game-view.active.split-primary') || document.querySelector('.game-view.active'); }
 
 async function openDialog(game = null, credentialsOnly = false) {
   currentView()?.blur();
@@ -444,6 +449,30 @@ $('#backup').addEventListener('click', async () => {
       showToast('Backup restaurado');
     }
   } catch (error) { showToast(error.message || 'Não foi possível restaurar o backup'); }
+});
+$('#splitView').addEventListener('click', () => {
+  if (!state.activeId) return showToast('Abra um jogo antes de dividir a tela');
+  if (state.splitId) {
+    document.querySelector(`[data-view-id="${state.splitId}"]`)?.classList.remove('active', 'split-secondary');
+    els.stack.classList.remove('split');
+    state.splitId = null;
+    $('#splitView').textContent = '▯';
+    $('#splitView').title = 'Dois jogos lado a lado';
+    return showToast('Tela dividida desativada');
+  }
+  const choices = state.games.filter((game) => game.id !== state.activeId);
+  if (!choices.length) return showToast('Adicione outro jogo para usar a tela dividida');
+  const message = choices.map((game, index) => `${index + 1}. ${game.name}`).join('\n');
+  const answer = Number(prompt(`Escolha o segundo jogo:\n${message}`));
+  const secondary = choices[answer - 1];
+  if (!secondary) return;
+  state.splitId = secondary.id;
+  const view = createWebview(secondary);
+  view.classList.add('active', 'split-secondary');
+  els.stack.classList.add('split');
+  $('#splitView').textContent = '▣';
+  $('#splitView').title = 'Fechar tela dividida';
+  showToast(`Tela dividida: ${secondary.name}`);
 });
 $('#closeNotes').addEventListener('click', () => { $('#notesDialog').close(); currentView()?.focus(); });
 $('#cancelNotes').addEventListener('click', () => { $('#notesDialog').close(); currentView()?.focus(); });
