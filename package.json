@@ -1,10 +1,14 @@
 {
   "name": "ovelhaohb-idles-hub",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Hub desktop privado para centralizar, acompanhar e jogar seus jogos idle de navegador.",
   "main": "src/main.js",
   "author": "OvelhaoHb",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ovelhaohb/ovelhaohb-hub-idle.git"
+  },
   "scripts": {
     "start": "node scripts/start.js",
     "dev": "node scripts/start.js",
@@ -41,15 +45,24 @@
       ]
     },
     "mac": {
-      "target": ["dmg", "zip"]
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Game"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }

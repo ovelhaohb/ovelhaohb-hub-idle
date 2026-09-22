@@ -2,6 +2,10 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('drakoria', {
   getVersion: () => ipcRenderer.invoke('app:version'),
+  checkForUpdates: () => ipcRenderer.invoke('updates:check'),
+  downloadUpdate: () => ipcRenderer.invoke('updates:download'),
+  installUpdate: () => ipcRenderer.invoke('updates:install'),
+  onUpdateStatus: (callback) => ipcRenderer.on('updates:status', (_event, status) => callback(status)),
   listGames: () => ipcRenderer.invoke('games:list'),
   saveGame: (game) => ipcRenderer.invoke('games:save', game),
   deleteGame: (id, clearSession = false) => ipcRenderer.invoke('games:delete', id, clearSession),

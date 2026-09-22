@@ -2,12 +2,29 @@ const { app, BrowserWindow, ipcMain, safeStorage, session, shell, Tray, Menu, No
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const { autoUpdater } = require('electron-updater');
 
 let mainWindow;
 let tray;
 let isQuitting = false;
 const reminderTimers = new Map();
 const gameContents = new Map();
+
+function sendUpdateStatus(status) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('updates:status', status);
+}
+
+function configureAutoUpdater() {
+  if (!app.isPackaged || process.env.DRAKORIA_CAPTURE) return;
+  autoUpdater.autoDownload = false;
+  autoUpdater.on('checking-for-update', () => sendUpdateStatus({ state: 'checking' }));
+  autoUpdater.on('update-available', (info) => sendUpdateStatus({ state: 'available', version: info.version }));
+  autoUpdater.on('update-not-available', () => sendUpdateStatus({ state: 'current' }));
+  autoUpdater.on('download-progress', (progress) => sendUpdateStatus({ state: 'downloading', percent: Math.round(progress.percent) }));
+  autoUpdater.on('update-downloaded', (info) => sendUpdateStatus({ state: 'ready', version: info.version }));
+  autoUpdater.on('error', () => sendUpdateStatus({ state: 'error' }));
+  autoUpdater.checkForUpdates().catch(() => {});
+}
 
 if (process.env.DRAKORIA_CAPTURE) app.disableHardwareAcceleration();
 
@@ -274,6 +291,26 @@ function registerIpc() {
     return app.getVersion();
   });
 
+  ipcMain.handle('updates:check', (event) => {
+    assertHubSender(event);
+    if (!app.isPackaged) return { state: 'development' };
+    autoUpdater.checkForUpdates().catch(() => sendUpdateStatus({ state: 'error' }));
+    return { state: 'checking' };
+  });
+
+  ipcMain.handle('updates:download', (event) => {
+    assertHubSender(event);
+    autoUpdater.downloadUpdate().catch(() => sendUpdateStatus({ state: 'error' }));
+    return true;
+  });
+
+  ipcMain.handle('updates:install', (event) => {
+    assertHubSender(event);
+    isQuitting = true;
+    autoUpdater.quitAndInstall();
+    return true;
+  });
+
   ipcMain.handle('games:list', (event) => {
     assertHubSender(event);
     return readGames().map(publicGame);
@@ -518,6 +555,7 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   scheduleReminders();
+  configureAutoUpdater();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

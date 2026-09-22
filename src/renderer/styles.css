@@ -93,6 +93,7 @@ button, input, label, dialog, .workspace, .sidebar { -webkit-app-region: no-drag
 .game-view { position: absolute; inset: 0; width: 100%; height: 100%; display: none; border: 0; }
 .game-view.active { display: flex; }
 .loading-bar { position: absolute; left: 0; top: 54px; height: 2px; width: 0; background: linear-gradient(90deg,#7140e6,#b699ff); z-index: 20; opacity: 0; transition: width .25s, opacity .25s; }
+.update-banner { position:absolute; z-index:40; right:18px; bottom:18px; display:flex; align-items:center; gap:10px; padding:11px 12px; border:1px solid rgba(139,92,246,.35); border-radius:10px; background:#191523; box-shadow:0 16px 40px rgba(0,0,0,.45); color:#ddd5f6; font-size:11px; }.update-banner button { border:0; border-radius:6px; background:#8b5cf6; color:#fff; padding:6px 9px; cursor:pointer; font-size:10px; font-weight:650; }.update-banner .update-dismiss { background:transparent; color:#a39cab; padding:2px 5px; font-size:16px; }
 .loading-bar.loading { width: 72%; opacity: 1; transition: width 7s cubic-bezier(.1,.5,.2,1); }
 .loading-bar.done { width: 100%; opacity: 0; }
 .hidden { display: none !important; }

@@ -284,6 +284,19 @@ function showToast(message) {
   showToast.timer = setTimeout(() => els.toast.classList.remove('show'), 1900);
 }
 
+function showUpdateStatus(status) {
+  const banner = $('#updateBanner');
+  const message = $('#updateMessage');
+  const action = $('#updateAction');
+  if (!status || ['current', 'development'].includes(status.state)) return banner.classList.add('hidden');
+  if (status.state === 'checking') { message.textContent = 'Verificando atualizações…'; action.classList.add('hidden'); }
+  if (status.state === 'available') { message.textContent = `Versão ${status.version} disponível`; action.textContent = 'Baixar'; action.classList.remove('hidden'); action.onclick = () => window.drakoria.downloadUpdate(); }
+  if (status.state === 'downloading') { message.textContent = `Baixando atualização: ${status.percent || 0}%`; action.classList.add('hidden'); }
+  if (status.state === 'ready') { message.textContent = `Versão ${status.version} pronta`; action.textContent = 'Instalar e reiniciar'; action.classList.remove('hidden'); action.onclick = () => window.drakoria.installUpdate(); }
+  if (status.state === 'error') { message.textContent = 'Não foi possível verificar atualizações'; action.textContent = 'Tentar novamente'; action.classList.remove('hidden'); action.onclick = () => window.drakoria.checkForUpdates(); }
+  banner.classList.remove('hidden');
+}
+
 async function openNotes() {
   const game = activeGame();
   if (!game) return;
@@ -390,6 +403,7 @@ $('#reminders').addEventListener('click', async () => {
   setTimeout(() => $('#reminderTitle').focus(), 50);
 });
 $('#closeReminders').addEventListener('click', () => { els.reminderDialog.close(); currentView()?.focus(); });
+$('#dismissUpdate').addEventListener('click', () => $('#updateBanner').classList.add('hidden'));
 $('#notes').addEventListener('click', openNotes);
 $('#diagnostics').addEventListener('click', async () => { $('#diagnosticsDialog').showModal(); await renderDiagnostics(); });
 $('#closeDiagnostics').addEventListener('click', () => { $('#diagnosticsDialog').close(); currentView()?.focus(); });
@@ -586,4 +600,6 @@ document.addEventListener('keydown', (event) => {
   renderList();
   renderReminders();
   window.drakoria.onRemindersChanged(() => refreshReminders().catch(() => {}));
+  window.drakoria.onUpdateStatus(showUpdateStatus);
+  window.drakoria.checkForUpdates().then(showUpdateStatus).catch(() => {});
 })();
