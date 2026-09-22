@@ -108,6 +108,14 @@
       <div class="dialog-actions"><button type="button" class="secondary-button" id="refreshDiagnostics">Atualizar</button></div>
     </dialog>
 
+    <dialog id="splitDialog">
+      <form method="dialog" id="splitForm">
+        <div class="dialog-head"><div><p class="eyebrow">TELA DIVIDIDA</p><h2>Escolha o segundo jogo</h2></div><button type="button" class="close-button" id="closeSplit">×</button></div>
+        <label class="game-details-field">Jogo<select id="splitGame" required></select></label>
+        <div class="dialog-actions"><button type="button" class="secondary-button" id="cancelSplit">Cancelar</button><button type="submit" class="primary-button">Abrir lado a lado</button></div>
+      </form>
+    </dialog>
+
     <dialog id="notesDialog">
       <form id="notesForm">
         <div class="dialog-head"><div><p class="eyebrow">ANOTAÇÕES</p><h2 id="notesGameName">Notas do jogo</h2></div><button type="button" class="close-button" id="closeNotes">×</button></div>

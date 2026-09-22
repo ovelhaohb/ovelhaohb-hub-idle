@@ -462,9 +462,14 @@ $('#splitView').addEventListener('click', () => {
   }
   const choices = state.games.filter((game) => game.id !== state.activeId);
   if (!choices.length) return showToast('Adicione outro jogo para usar a tela dividida');
-  const message = choices.map((game, index) => `${index + 1}. ${game.name}`).join('\n');
-  const answer = Number(prompt(`Escolha o segundo jogo:\n${message}`));
-  const secondary = choices[answer - 1];
+  $('#splitGame').replaceChildren(...choices.map((game) => Object.assign(document.createElement('option'), { value: game.id, textContent: game.name })));
+  $('#splitDialog').showModal();
+});
+$('#closeSplit').addEventListener('click', () => $('#splitDialog').close());
+$('#cancelSplit').addEventListener('click', () => $('#splitDialog').close());
+$('#splitForm').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const secondary = state.games.find((game) => game.id === $('#splitGame').value);
   if (!secondary) return;
   state.splitId = secondary.id;
   const view = createWebview(secondary);
@@ -472,6 +477,7 @@ $('#splitView').addEventListener('click', () => {
   els.stack.classList.add('split');
   $('#splitView').textContent = '▣';
   $('#splitView').title = 'Fechar tela dividida';
+  $('#splitDialog').close();
   showToast(`Tela dividida: ${secondary.name}`);
 });
 $('#closeNotes').addEventListener('click', () => { $('#notesDialog').close(); currentView()?.focus(); });
