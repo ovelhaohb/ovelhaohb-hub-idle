@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, safeStorage, session, shell, Tray, Menu, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage, session, shell, Tray, Menu, Notification, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -307,6 +307,32 @@ function registerIpc() {
     assertHubSender(event);
     isQuitting = true;
     autoUpdater.quitAndInstall();
+    return true;
+  });
+
+  ipcMain.handle('backup:export', async (event) => {
+    assertHubSender(event);
+    const result = await dialog.showSaveDialog(mainWindow, { title: 'Exportar dados do hub', defaultPath: 'ovelhaohb-idles-hub-backup.json', filters: [{ name: 'Backup do hub', extensions: ['json'] }] });
+    if (result.canceled || !result.filePath) return false;
+    const backup = { format: 1, createdAt: new Date().toISOString(), games: readGames(), reminders: readReminders(), notes: readNotes() };
+    fs.writeFileSync(result.filePath, JSON.stringify(backup, null, 2), 'utf8');
+    return true;
+  });
+
+  ipcMain.handle('backup:import', async (event) => {
+    assertHubSender(event);
+    const result = await dialog.showOpenDialog(mainWindow, { title: 'Restaurar dados do hub', properties: ['openFile'], filters: [{ name: 'Backup do hub', extensions: ['json'] }] });
+    if (result.canceled || !result.filePaths[0]) return false;
+    const backup = JSON.parse(fs.readFileSync(result.filePaths[0], 'utf8'));
+    if (backup?.format !== 1 || !Array.isArray(backup.games) || !Array.isArray(backup.reminders) || !backup.notes || typeof backup.notes !== 'object') throw new Error('Este arquivo não é um backup válido do hub.');
+    const stamp = Date.now();
+    if (fs.existsSync(dataFile())) fs.copyFileSync(dataFile(), `${dataFile()}.${stamp}.pre-restore.bak`);
+    if (fs.existsSync(remindersFile())) fs.copyFileSync(remindersFile(), `${remindersFile()}.${stamp}.pre-restore.bak`);
+    if (fs.existsSync(notesFile())) fs.copyFileSync(notesFile(), `${notesFile()}.${stamp}.pre-restore.bak`);
+    writeGames(backup.games);
+    writeReminders(backup.reminders);
+    writeNotes(backup.notes);
+    scheduleReminders();
     return true;
   });
 

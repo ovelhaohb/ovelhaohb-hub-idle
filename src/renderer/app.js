@@ -419,6 +419,21 @@ $('#notes').addEventListener('click', openNotes);
 $('#diagnostics').addEventListener('click', async () => { $('#diagnosticsDialog').showModal(); await renderDiagnostics(); });
 $('#closeDiagnostics').addEventListener('click', () => { $('#diagnosticsDialog').close(); currentView()?.focus(); });
 $('#refreshDiagnostics').addEventListener('click', renderDiagnostics);
+$('#backup').addEventListener('click', async () => {
+  if (confirm('Deseja exportar um backup agora? Escolha “Cancelar” para restaurar um backup existente.')) {
+    try { if (await window.drakoria.exportBackup()) showToast('Backup exportado'); } catch { showToast('Não foi possível exportar o backup'); }
+    return;
+  }
+  if (!confirm('Restaurar substituirá a lista de jogos, lembretes e notas atuais. Uma cópia local será criada antes da restauração. Continuar?')) return;
+  try {
+    if (await window.drakoria.importBackup()) {
+      state.games = await window.drakoria.listGames();
+      await refreshReminders();
+      renderList();
+      showToast('Backup restaurado');
+    }
+  } catch (error) { showToast(error.message || 'Não foi possível restaurar o backup'); }
+});
 $('#closeNotes').addEventListener('click', () => { $('#notesDialog').close(); currentView()?.focus(); });
 $('#cancelNotes').addEventListener('click', () => { $('#notesDialog').close(); currentView()?.focus(); });
 function setSidebarCollapsed(collapsed) {

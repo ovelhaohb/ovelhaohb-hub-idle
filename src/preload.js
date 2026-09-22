@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('drakoria', {
   checkForUpdates: () => ipcRenderer.invoke('updates:check'),
   downloadUpdate: () => ipcRenderer.invoke('updates:download'),
   installUpdate: () => ipcRenderer.invoke('updates:install'),
+  exportBackup: () => ipcRenderer.invoke('backup:export'),
+  importBackup: () => ipcRenderer.invoke('backup:import'),
   onUpdateStatus: (callback) => ipcRenderer.on('updates:status', (_event, status) => callback(status)),
   listGames: () => ipcRenderer.invoke('games:list'),
   getCredentials: (id) => ipcRenderer.invoke('games:credentials', id),
