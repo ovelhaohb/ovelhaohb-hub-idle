@@ -17,6 +17,29 @@ Um hub desktop privado para reunir jogos idle de navegador em uma única aplica�
 
 O hub não envia dados a servidores próprios. URLs, preferências, lembretes e notas ficam no perfil local do aplicativo. Usuários e senhas usam a proteção fornecida pelo sistema operacional. Cada jogo tem seu próprio armazenamento de cookies e sessão.
 
+## Instalação
+
+Baixe a versão mais recente na página de [Releases](https://github.com/ovelhaohb/ovelhaohb-hub-idle/releases).
+
+### Windows
+
+Baixe **`OvelhaoHb Idles Hub Setup x.y.z.exe`** para instalar o hub. Esse formato recebe avisos de atualização dentro do próprio aplicativo. Execute o instalador e mantenha a mesma pasta usada pela versão anterior quando estiver atualizando.
+
+Para usar sem instalação, baixe **`OvelhaoHb Idles Hub x.y.z.exe`**. A versão portátil não se atualiza automaticamente: substitua o arquivo manualmente ao baixar uma versão nova.
+
+### Linux
+
+Baixe o arquivo **`.AppImage`**, marque-o como executável e abra-o:
+
+```bash
+chmod +x OvelhaoHb-Idles-Hub-*.AppImage
+./OvelhaoHb-Idles-Hub-*.AppImage
+```
+
+### macOS
+
+Baixe o arquivo **`.dmg`**, abra-o e arraste o hub para a pasta **Applications**. Em Macs com Apple Silicon, prefira o arquivo com `arm64` no nome; em Macs Intel, use o pacote sem esse sufixo.
+
 ## Uso
 
 1. Instale as dependências com `npm install`.
