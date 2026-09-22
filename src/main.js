@@ -3,10 +3,17 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { autoUpdater } = require('electron-updater');
+const { PostHog } = require('posthog-node');
+
+// A chave de projeto do PostHog é destinada à coleta de eventos e é segura para
+// aplicativos públicos. Chaves pessoais e chaves secretas nunca são usadas aqui.
+const POSTHOG_PROJECT_TOKEN = 'phc_yXlWhoN4tjAuNwpjNHsEGYvtWviLAh8b3gMQdB6TgZSd4';
+const POSTHOG_HOST = 'https://us.i.posthog.com';
 
 let mainWindow;
 let tray;
 let isQuitting = false;
+let posthog;
 const reminderTimers = new Map();
 const gameContents = new Map();
 
@@ -84,6 +91,45 @@ function companionFile() {
 
 function windowStateFile() {
   return path.join(app.getPath('userData'), 'window-state.json');
+}
+
+function analyticsFile() {
+  return path.join(app.getPath('userData'), 'analytics.json');
+}
+
+function installationId() {
+  try {
+    const data = JSON.parse(fs.readFileSync(analyticsFile(), 'utf8'));
+    if (/^[a-zA-Z0-9-]{36}$/.test(data.installationId)) return data.installationId;
+  } catch {}
+  const id = crypto.randomUUID();
+  fs.writeFileSync(analyticsFile(), JSON.stringify({ installationId: id }), 'utf8');
+  return id;
+}
+
+function initializeAnalytics() {
+  // Capturas automáticas de desenvolvimento não devem poluir as métricas reais.
+  if (process.env.DRAKORIA_CAPTURE) return;
+  posthog = new PostHog(POSTHOG_PROJECT_TOKEN, {
+    host: POSTHOG_HOST,
+    disableGeoip: true,
+    personProfiles: 'identified_only'
+  });
+  track('hub_started');
+}
+
+function track(event, properties = {}) {
+  if (!posthog) return;
+  void posthog.capture({
+    distinctId: installationId(),
+    event,
+    properties: {
+      app_version: app.getVersion(),
+      platform: process.platform,
+      architecture: process.arch,
+      ...properties
+    }
+  }).catch(() => {});
 }
 
 function readWindowState() {
@@ -312,18 +358,21 @@ function registerIpc() {
   ipcMain.handle('updates:check', (event) => {
     assertHubSender(event);
     if (!app.isPackaged) return { state: 'development' };
+    track('update_check_requested');
     autoUpdater.checkForUpdates().catch(() => sendUpdateStatus({ state: 'error' }));
     return { state: 'checking' };
   });
 
   ipcMain.handle('updates:download', (event) => {
     assertHubSender(event);
+    track('update_download_requested');
     autoUpdater.downloadUpdate().catch(() => sendUpdateStatus({ state: 'error' }));
     return true;
   });
 
   ipcMain.handle('updates:install', (event) => {
     assertHubSender(event);
+    track('update_install_requested');
     isQuitting = true;
     autoUpdater.quitAndInstall();
     return true;
@@ -333,8 +382,9 @@ function registerIpc() {
     assertHubSender(event);
     const result = await dialog.showSaveDialog(mainWindow, { title: 'Exportar dados do hub', defaultPath: 'ovelhaohb-idles-hub-backup.json', filters: [{ name: 'Backup do hub', extensions: ['json'] }] });
     if (result.canceled || !result.filePath) return false;
-    const backup = { format: 1, createdAt: new Date().toISOString(), games: readGames(), reminders: readReminders(), notes: readNotes() };
+    const backup = { format: 1, createdAt: new Date().toISOString(), games: readGames(), reminders: readReminders(), notes: readNotes(), companion: readCompanion() };
     fs.writeFileSync(result.filePath, JSON.stringify(backup, null, 2), 'utf8');
+    track('backup_exported');
     return true;
   });
 
@@ -351,7 +401,9 @@ function registerIpc() {
     writeGames(backup.games);
     writeReminders(backup.reminders);
     writeNotes(backup.notes);
+    if (backup.companion && typeof backup.companion === 'object' && !Array.isArray(backup.companion)) writeCompanion(backup.companion);
     scheduleReminders();
+    track('backup_imported');
     return true;
   });
 
@@ -382,6 +434,7 @@ function registerIpc() {
     else reminders.push(clean);
     writeReminders(reminders);
     scheduleReminder(clean);
+    track('reminder_saved');
     return clean;
   });
 
@@ -410,6 +463,7 @@ function registerIpc() {
     if (note.trim()) notes[gameId] = note;
     else delete notes[gameId];
     writeNotes(notes);
+    track('note_saved');
     return true;
   });
 
@@ -428,6 +482,7 @@ function registerIpc() {
     const data = readCompanion();
     data[gameId] = { tasks, links };
     writeCompanion(data);
+    track('game_companion_saved');
     return data[gameId];
   });
 
@@ -458,6 +513,7 @@ function registerIpc() {
     if (savedIndex >= 0) games[savedIndex] = clean;
     else games.push(clean);
     writeGames(games);
+    track(existing ? 'game_updated' : 'game_added');
     return publicGame(clean);
   });
 
@@ -468,6 +524,7 @@ function registerIpc() {
     if (!games.some((game) => game.id === id)) throw new Error('Jogo não encontrado.');
     writeGames(games.filter((game) => game.id !== id));
     if (clearSession) await session.fromPartition(`persist:game-${id}`).clearStorageData();
+    track('game_deleted');
     return true;
   });
 
@@ -622,6 +679,7 @@ function createTray() {
 }
 
 app.whenReady().then(() => {
+  initializeAnalytics();
   registerIpc();
   maintainCaches().catch(() => {});
   createWindow();
@@ -637,4 +695,8 @@ app.on('window-all-closed', () => {
   if (process.platform === 'darwin') app.quit();
 });
 
-app.on('before-quit', () => { isQuitting = true; });
+app.on('before-quit', () => {
+  isQuitting = true;
+  track('hub_closed');
+  void posthog?.shutdown().catch(() => {});
+});

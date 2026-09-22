@@ -15,7 +15,9 @@ Um hub desktop privado para reunir jogos idle de navegador em uma única aplica�
 
 ## Privacidade
 
-O hub não envia dados a servidores próprios. URLs, preferências, lembretes e notas ficam no perfil local do aplicativo. Usuários e senhas usam a proteção fornecida pelo sistema operacional. Cada jogo tem seu próprio armazenamento de cookies e sessão.
+URLs, preferências, lembretes e notas ficam no perfil local do aplicativo. Usuários e senhas usam a proteção fornecida pelo sistema operacional. Cada jogo tem seu próprio armazenamento de cookies e sessão.
+
+Para acompanhar instalações e melhorar o produto, a versão distribuída envia ao PostHog eventos anônimos de uso: abertura e fechamento do hub, versão, sistema operacional, arquitetura e uso de recursos. Não enviamos identificação pessoal, endereços dos jogos, credenciais, cookies, notas, lembretes, nomes de jogos ou links.
 
 ## Instalação
 
