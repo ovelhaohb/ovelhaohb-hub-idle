@@ -108,6 +108,9 @@ dialog::backdrop { background: rgba(4,4,8,.78); }
 .reminder-empty { color:var(--muted); font-size:11px; text-align:center; padding:12px 0; }
 #notesDialog textarea { display:block; width:100%; min-height:220px; resize:vertical; margin-top:7px; border-radius:9px; border:1px solid var(--line); background:#0e0e13; padding:12px; color:white; outline:none; font:12px/1.5 "Segoe UI Variable", "Segoe UI", sans-serif; }
 #notesDialog textarea:focus { border-color:#9b76ff; }
+#diagnosticsDialog { width:min(500px,calc(100% - 40px)); padding:24px; }
+.diagnostics-head { display:flex; align-items:flex-start; justify-content:space-between; }.diagnostics-head h2 { margin:4px 0 0; font-size:20px; }.diagnostics-copy { color:var(--muted); font-size:11px; margin:14px 0; }
+.diagnostics-list { max-height:280px; overflow:auto; border-top:1px solid var(--line); }.diagnostics-item { display:flex; align-items:center; gap:12px; padding:12px 2px; border-bottom:1px solid var(--line); }.diagnostics-item div { min-width:0; flex:1; }.diagnostics-item strong,.diagnostics-item small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.diagnostics-item strong { font-size:12px; }.diagnostics-item small { margin-top:3px; font-size:10px; color:var(--muted); }.diagnostics-memory { color:#bda5ff; font-size:12px; font-weight:650; }
 dialog form { padding: 25px; }
 .dialog-head { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:24px; }.dialog-head h2{font-size:22px;margin:0;letter-spacing:-.5px;}.dialog-head .eyebrow{margin-bottom:7px;}
 .close-button { border:0;background:transparent;color:#777482;font-size:25px;cursor:pointer;line-height:1; }.close-button:hover{color:white;}

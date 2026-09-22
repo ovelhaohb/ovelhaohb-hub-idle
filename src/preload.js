@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('drakoria', {
   listGames: () => ipcRenderer.invoke('games:list'),
   saveGame: (game) => ipcRenderer.invoke('games:save', game),
   deleteGame: (id, clearSession = false) => ipcRenderer.invoke('games:delete', id, clearSession),
+  getDiagnostics: () => ipcRenderer.invoke('games:diagnostics'),
   openExternal: (url) => ipcRenderer.invoke('external:open', url),
   listReminders: () => ipcRenderer.invoke('reminders:list'),
   saveReminder: (reminder) => ipcRenderer.invoke('reminders:save', reminder),

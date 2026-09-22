@@ -7,6 +7,7 @@ let mainWindow;
 let tray;
 let isQuitting = false;
 const reminderTimers = new Map();
+const gameContents = new Map();
 
 if (process.env.DRAKORIA_CAPTURE) app.disableHardwareAcceleration();
 
@@ -354,6 +355,19 @@ function registerIpc() {
     return true;
   });
 
+  ipcMain.handle('games:diagnostics', async (event) => {
+    assertHubSender(event);
+    const entries = await Promise.all([...gameContents.entries()].map(async ([id, contents]) => {
+      try {
+        const memory = await contents.getProcessMemoryInfo();
+        return { id, processId: contents.getOSProcessId(), memory: memory.private || memory.residentSet || 0 };
+      } catch {
+        return { id, processId: null, memory: null };
+      }
+    }));
+    return entries;
+  });
+
   ipcMain.handle('external:open', (event, url) => {
     assertHubSender(event);
     const parsed = new URL(url);
@@ -438,6 +452,9 @@ function createWindow() {
   });
 
   mainWindow.webContents.on('did-attach-webview', (_event, contents) => {
+    const gameId = String(contents.getLastWebPreferences().partition || '').replace(/^persist:game-/, '');
+    if (/^[a-zA-Z0-9-]{36}$/.test(gameId)) gameContents.set(gameId, contents);
+    contents.once('destroyed', () => gameContents.delete(gameId));
     contents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
     contents.setWindowOpenHandler(({ url }) => {
       try {

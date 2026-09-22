@@ -296,6 +296,39 @@ async function openNotes() {
   }
 }
 
+function formatMemory(kilobytes) {
+  if (!Number.isFinite(kilobytes)) return 'Indisponível';
+  return kilobytes >= 1024 ? `${(kilobytes / 1024).toFixed(1)} MB` : `${Math.round(kilobytes)} KB`;
+}
+
+async function renderDiagnostics() {
+  const list = $('#diagnosticsList');
+  list.replaceChildren(Object.assign(document.createElement('p'), { className: 'reminder-empty', textContent: 'Atualizando…' }));
+  try {
+    const diagnostics = await window.drakoria.getDiagnostics();
+    if (!diagnostics.length) {
+      list.replaceChildren(Object.assign(document.createElement('p'), { className: 'reminder-empty', textContent: 'Nenhum jogo foi carregado nesta sessão.' }));
+      return;
+    }
+    list.replaceChildren(...diagnostics.map((entry) => {
+      const game = state.games.find((item) => item.id === entry.id);
+      const item = document.createElement('div');
+      item.className = 'diagnostics-item';
+      const content = document.createElement('div');
+      const title = document.createElement('strong');
+      title.textContent = game?.name || 'Jogo removido';
+      const details = document.createElement('small');
+      details.textContent = entry.processId ? `Processo ${entry.processId}` : 'Processo indisponível';
+      content.append(title, details);
+      const memory = document.createElement('span');
+      memory.className = 'diagnostics-memory';
+      memory.textContent = formatMemory(entry.memory);
+      item.append(content, memory);
+      return item;
+    }));
+  } catch { list.replaceChildren(Object.assign(document.createElement('p'), { className: 'reminder-empty', textContent: 'Não foi possível obter o diagnóstico.' })); }
+}
+
 function formatReminderTime(value) {
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? date.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : 'em breve';
@@ -356,6 +389,9 @@ $('#reminders').addEventListener('click', async () => {
 });
 $('#closeReminders').addEventListener('click', () => { els.reminderDialog.close(); currentView()?.focus(); });
 $('#notes').addEventListener('click', openNotes);
+$('#diagnostics').addEventListener('click', async () => { $('#diagnosticsDialog').showModal(); await renderDiagnostics(); });
+$('#closeDiagnostics').addEventListener('click', () => { $('#diagnosticsDialog').close(); currentView()?.focus(); });
+$('#refreshDiagnostics').addEventListener('click', renderDiagnostics);
 $('#closeNotes').addEventListener('click', () => { $('#notesDialog').close(); currentView()?.focus(); });
 $('#cancelNotes').addEventListener('click', () => { $('#notesDialog').close(); currentView()?.focus(); });
 function setSidebarCollapsed(collapsed) {

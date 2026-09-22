@@ -50,6 +50,7 @@
           <button class="icon-button" id="mute" aria-label="Silenciar aba" title="Silenciar aba">🔊</button>
           <button class="icon-button" id="reminders" aria-label="Abrir lembretes" title="Lembretes">⏱</button>
           <button class="icon-button" id="notes" aria-label="Abrir notas do jogo" title="Notas do jogo">▤</button>
+          <button class="icon-button" id="diagnostics" aria-label="Abrir diagnóstico" title="Diagnóstico">▥</button>
           <button class="credentials-button" id="credentials">⌘ <span>Login</span></button>
           <button class="icon-button" id="favorite" aria-label="Favoritar jogo" title="Favoritar jogo">☆</button>
           <button class="icon-button" id="external" aria-label="Abrir no navegador">↗</button>
@@ -93,6 +94,13 @@
         <p class="form-error" id="formError"></p>
         <div class="dialog-actions"><button type="button" class="secondary-button" id="cancelDialog">Cancelar</button><button type="submit" class="primary-button">Salvar jogo</button></div>
       </form>
+    </dialog>
+
+    <dialog id="diagnosticsDialog">
+      <div class="diagnostics-head"><div><p class="eyebrow">DIAGNÓSTICO</p><h2>Uso dos jogos ativos</h2></div><button type="button" class="close-button" id="closeDiagnostics">×</button></div>
+      <p class="diagnostics-copy">Memória do processo de cada jogo carregado nesta sessão.</p>
+      <div class="diagnostics-list" id="diagnosticsList"></div>
+      <div class="dialog-actions"><button type="button" class="secondary-button" id="refreshDiagnostics">Atualizar</button></div>
     </dialog>
 
     <dialog id="notesDialog">
