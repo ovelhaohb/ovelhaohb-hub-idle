@@ -11,6 +11,10 @@ Um hub desktop privado para reunir jogos idle de navegador em uma única aplica�
 - Notas locais para estratégias, metas, links e checklists de cada jogo.
 - Perfil por jogo para manter a atividade em segundo plano ou economizar recursos.
 - Diagnóstico de processo e consumo de memória dos jogos carregados.
+- Backup portátil criptografado por senha e restauração compatível com versões anteriores.
+- Categorias, busca avançada, estados por jogo e memória da última tela dividida.
+- Modo econômico, proteção opcional contra mudança de domínio e atalhos configuráveis.
+- Controle de telemetria, histórico de atualizações e acesso a versões anteriores.
 - Recuperação limitada de processos que pararem inesperadamente.
 
 ## Privacidade
@@ -48,7 +52,7 @@ Baixe o arquivo **`.dmg`**, abra-o e arraste o hub para a pasta **Applications**
 2. Execute `npm start`.
 3. Adicione um jogo, informe o endereço e, se desejar, salve as credenciais para preenchimento manual ou automático.
 
-Atalhos úteis: `Ctrl+Tab` e `Ctrl+Shift+Tab` trocam de jogo; `Ctrl` + `+`, `Ctrl` + `-` e `Ctrl` + `0` ajustam o zoom. Fechar a janela mantém o hub ativo na bandeja do sistema; use **Sair** no menu da bandeja para encerrar completamente.
+Atalhos úteis: dentro do hub, `F5` atualiza o jogo ignorando o cache; `Ctrl+Tab` e `Ctrl+Shift+Tab` trocam de jogo; `Ctrl` + `+`, `Ctrl` + `-` e `Ctrl` + `0` ajustam o zoom. Fechar a janela mantém o hub ativo na bandeja do sistema; use **Sair** no menu da bandeja para encerrar completamente.
 
 ## Desenvolvimento
 
@@ -63,3 +67,7 @@ As releases oficiais são criadas pelo GitHub Actions ao publicar uma tag no for
 A versão em uso aparece no rodapé da barra lateral. Toda atualização publicada incrementa a versão do aplicativo e recebe uma tag correspondente no GitHub.
 
 Os backups de desenvolvimento são mantidos fora do repositório para não incluir dados pessoais ou arquivos de sessão no histórico do projeto.
+
+## Assinatura de releases
+
+O workflow de release aceita os segredos `CSC_LINK` e `CSC_KEY_PASSWORD` para assinar os pacotes Windows. Para notarização no macOS, configure também `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` e `APPLE_TEAM_ID`. Certificados e senhas nunca devem ser adicionados ao repositório.

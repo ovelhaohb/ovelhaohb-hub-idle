@@ -1,7 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 const colors = ['#8b5cf6', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ef476f'];
 
-const state = { games: [], activeId: null, splitId: null, selectedColor: colors[0], passwordVisible: false, recovery: new Map(), search: '', reminders: [], companion: { tasks: [], links: [] } };
+const state = { games: [], activeId: null, splitId: null, selectedColor: colors[0], passwordVisible: false, recovery: new Map(), statuses: new Map(), search: '', category: '', reminders: [], companion: { tasks: [], links: [] }, settings: { analyticsEnabled: true, memorySaverEnabled: false, hardReloadShortcut: 'both' } };
 const els = {
   list: $('#gameList'), count: $('#gameCount'), welcome: $('#welcome'), toolbar: $('#toolbar'),
   stack: $('#webviewStack'), address: $('#addressText'), dialog: $('#gameDialog'), form: $('#gameForm'),
@@ -36,13 +36,16 @@ function renderList() {
   els.count.textContent = state.games.length;
   const search = state.search.trim().toLocaleLowerCase('pt-BR');
   const games = [...state.games]
-    .filter((game) => !search || `${game.name} ${domain(game.url)}`.toLocaleLowerCase('pt-BR').includes(search))
+    .filter((game) => !state.category || game.category === state.category)
+    .filter((game) => !search || `${game.name} ${domain(game.url)} ${game.category || ''}`.toLocaleLowerCase('pt-BR').includes(search))
     .sort((first, second) => Number(second.favorite) - Number(first.favorite) || first.name.localeCompare(second.name, 'pt-BR'));
   els.list.replaceChildren(...games.map((game) => {
     const item = document.createElement('button');
     item.className = `game-item${game.id === state.activeId ? ' active' : ''}`;
     item.dataset.id = game.id;
-    item.innerHTML = `<span class="active-line"></span><span class="game-avatar" style="background:linear-gradient(135deg,${game.color},${game.color}88)"></span><span class="game-meta"><strong></strong><small></small></span>`;
+    const status = state.statuses.get(game.id) || 'idle';
+    item.innerHTML = `<span class="active-line"></span><span class="game-avatar" style="background:linear-gradient(135deg,${game.color},${game.color}88)"></span><span class="game-meta"><strong></strong><small></small></span><span class="game-state ${status}"></span>`;
+    item.title = `Estado: ${{ idle: 'não carregado', loading: 'carregando', online: 'online', error: 'erro', sleeping: 'economizando memória' }[status] || status}`;
     const avatar = item.querySelector('.game-avatar');
     const icon = iconSource(game);
     if (icon) {
@@ -57,10 +60,23 @@ function renderList() {
     const name = item.querySelector('strong');
     name.dataset.favorite = game.favorite ? '★' : '';
     name.textContent = game.name;
-    item.querySelector('small').textContent = domain(game.url);
+    item.querySelector('small').textContent = game.category ? `${game.category} · ${domain(game.url)}` : domain(game.url);
     item.addEventListener('click', () => openGame(game.id));
     return item;
   }));
+}
+
+function renderCategoryFilter() {
+  const select = $('#categoryFilter');
+  const categories = [...new Set(state.games.map((game) => game.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  select.replaceChildren(Object.assign(document.createElement('option'), { value: '', textContent: 'Todas as categorias' }), ...categories.map((category) => Object.assign(document.createElement('option'), { value: category, textContent: category })));
+  if (categories.includes(state.category)) select.value = state.category;
+  else state.category = '';
+}
+
+function setGameStatus(gameId, status) {
+  state.statuses.set(gameId, status);
+  renderList();
 }
 
 function setLoading(loading) {
@@ -181,8 +197,9 @@ function createWebview(game) {
     }).catch(() => {});
   });
   view.src = game.url;
-  view.addEventListener('did-start-loading', () => { if (state.activeId === game.id) setLoading(true); });
+  view.addEventListener('did-start-loading', () => { setGameStatus(game.id, 'loading'); if (state.activeId === game.id) setLoading(true); });
   view.addEventListener('did-stop-loading', async () => {
+    setGameStatus(game.id, 'online');
     if (state.activeId !== game.id) return;
     setLoading(false);
     updateAddress(view);
@@ -203,6 +220,7 @@ function createWebview(game) {
   view.addEventListener('page-title-updated', (event) => { if (state.activeId === game.id) document.title = `${event.title} — OvelhaoHb Idles Hub`; });
   view.addEventListener('render-process-gone', (event) => {
     if (['clean-exit', 'killed'].includes(event.details?.reason)) return;
+    setGameStatus(game.id, 'error');
     const previous = state.recovery.get(game.id) || { attempts: 0, since: Date.now() };
     const recent = Date.now() - previous.since < 5 * 60 * 1000;
     const recovery = recent ? { ...previous, attempts: previous.attempts + 1 } : { attempts: 1, since: Date.now() };
@@ -248,6 +266,16 @@ function openGame(id) {
   updateZoomControls();
   els.popover.classList.add('hidden');
   renderList();
+  if (state.settings.memorySaverEnabled) {
+    document.querySelectorAll('.game-view').forEach((inactiveView) => {
+      const inactiveGame = currentGame(inactiveView.dataset.viewId);
+      const visible = [state.activeId, state.splitId].includes(inactiveView.dataset.viewId);
+      if (!visible && inactiveGame?.keepActive === false) {
+        inactiveView.remove();
+        setGameStatus(inactiveGame.id, 'sleeping');
+      }
+    });
+  }
 }
 
 function currentView() { return document.querySelector('.game-view.active.split-primary') || document.querySelector('.game-view.active'); }
@@ -260,6 +288,7 @@ async function openDialog(game = null, credentialsOnly = false) {
   $('#dialogTitle').textContent = credentialsOnly ? 'Atualizar login' : (game ? 'Editar jogo' : 'Adicionar jogo');
   $('#gameId').value = game?.id || '';
   $('#gameName').value = game?.name || '';
+  $('#gameCategory').value = game?.category || '';
   $('#gameUrl').value = game?.url || '';
   let credentials = { username: '', password: '' };
   if (game?.hasCredentials) {
@@ -269,6 +298,7 @@ async function openDialog(game = null, credentialsOnly = false) {
   $('#gamePassword').value = credentials.password || '';
   $('#gameAutoFill').checked = Boolean(game?.autoFill);
   $('#gameKeepActive').checked = game?.keepActive !== false;
+  $('#gameRestrictNavigation').checked = game ? Boolean(game.restrictNavigation) : true;
   state.selectedColor = game?.color || colors[0];
   renderColors();
   els.popover.classList.add('hidden');
@@ -435,20 +465,85 @@ $('#addLink').addEventListener('click', () => { const label = $('#linkLabel').va
 $('#diagnostics').addEventListener('click', async () => { $('#diagnosticsDialog').showModal(); await renderDiagnostics(); });
 $('#closeDiagnostics').addEventListener('click', () => { $('#diagnosticsDialog').close(); currentView()?.focus(); });
 $('#refreshDiagnostics').addEventListener('click', renderDiagnostics);
-$('#backup').addEventListener('click', async () => {
-  if (confirm('Deseja exportar um backup agora? Escolha “Cancelar” para restaurar um backup existente.')) {
-    try { if (await window.drakoria.exportBackup()) showToast('Backup exportado'); } catch { showToast('Não foi possível exportar o backup'); }
-    return;
-  }
-  if (!confirm('Restaurar substituirá a lista de jogos, lembretes e notas atuais. Uma cópia local será criada antes da restauração. Continuar?')) return;
+$('#backup').addEventListener('click', () => {
+  $('#backupPassword').value = '';
+  $('#backupError').textContent = '';
+  $('#backupDialog').showModal();
+});
+$('#closeBackup').addEventListener('click', () => $('#backupDialog').close());
+$('#exportSecureBackup').addEventListener('click', async () => {
+  const password = $('#backupPassword').value;
+  if (password.length < 8) return $('#backupError').textContent = 'Use pelo menos 8 caracteres.';
   try {
-    if (await window.drakoria.importBackup()) {
+    if (await window.drakoria.exportBackup(password)) {
+      $('#backupDialog').close();
+      showToast('Backup portátil criptografado exportado');
+    }
+  } catch (error) { $('#backupError').textContent = error.message || 'Não foi possível exportar o backup'; }
+});
+$('#exportSafeBackup').addEventListener('click', async () => {
+  try {
+    if (await window.drakoria.exportBackup()) {
+      $('#backupDialog').close();
+      showToast('Backup sem credenciais exportado');
+    }
+  } catch (error) { $('#backupError').textContent = error.message || 'Não foi possível exportar o backup'; }
+});
+$('#importBackup').addEventListener('click', async () => {
+  if (!confirm('A restauração substituirá jogos, lembretes e notas. Uma cópia local será criada antes. Continuar?')) return;
+  try {
+    if (await window.drakoria.importBackup($('#backupPassword').value)) {
+      document.querySelectorAll('.game-view').forEach((view) => view.remove());
       state.games = await window.drakoria.listGames();
+      state.statuses.clear();
+      state.activeId = null;
+      state.splitId = null;
       await refreshReminders();
+      renderCategoryFilter();
       renderList();
+      els.toolbar.classList.add('hidden');
+      els.stack.style.display = 'none';
+      els.welcome.classList.remove('hidden');
+      $('#backupDialog').close();
       showToast('Backup restaurado');
     }
-  } catch (error) { showToast(error.message || 'Não foi possível restaurar o backup'); }
+  } catch (error) { $('#backupError').textContent = error.message || 'Não foi possível restaurar o backup'; }
+});
+$('#settings').addEventListener('click', async () => {
+  $('#analyticsEnabled').checked = state.settings.analyticsEnabled !== false;
+  $('#memorySaverEnabled').checked = Boolean(state.settings.memorySaverEnabled);
+  $('#hardReloadShortcut').value = state.settings.hardReloadShortcut || 'both';
+  $('#settingsError').textContent = '';
+  const history = $('#updateHistory');
+  history.replaceChildren(Object.assign(document.createElement('span'), { className: 'update-history-empty', textContent: 'Carregando…' }));
+  $('#settingsDialog').showModal();
+  try {
+    const entries = await window.drakoria.getUpdateHistory();
+    history.replaceChildren(...(entries.length ? entries.slice(0, 5).map((entry) => {
+      const row = document.createElement('div');
+      row.className = 'update-history-row';
+      const labels = { available: 'Disponível', current: 'Versão atual', ready: 'Pronta para instalar', error: 'Falha na verificação' };
+      row.append(Object.assign(document.createElement('span'), { textContent: `${labels[entry.state] || entry.state} · v${entry.version}` }), Object.assign(document.createElement('time'), { textContent: new Date(entry.at).toLocaleDateString('pt-BR') }));
+      return row;
+    }) : [Object.assign(document.createElement('span'), { className: 'update-history-empty', textContent: 'Nenhuma atualização registrada.' })]));
+  } catch {
+    history.replaceChildren(Object.assign(document.createElement('span'), { className: 'update-history-empty', textContent: 'Histórico indisponível.' }));
+  }
+});
+$('#openPreviousVersions').addEventListener('click', () => window.drakoria.openPreviousVersions());
+$('#closeSettings').addEventListener('click', () => $('#settingsDialog').close());
+$('#cancelSettings').addEventListener('click', () => $('#settingsDialog').close());
+$('#settingsForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  try {
+    state.settings = await window.drakoria.saveSettings({
+      analyticsEnabled: $('#analyticsEnabled').checked,
+      memorySaverEnabled: $('#memorySaverEnabled').checked,
+      hardReloadShortcut: $('#hardReloadShortcut').value
+    });
+    $('#settingsDialog').close();
+    showToast('Configurações salvas');
+  } catch (error) { $('#settingsError').textContent = error.message || 'Não foi possível salvar'; }
 });
 $('#splitView').addEventListener('click', () => {
   if (!state.activeId) return showToast('Abra um jogo antes de dividir a tela');
@@ -463,6 +558,8 @@ $('#splitView').addEventListener('click', () => {
   const choices = state.games.filter((game) => game.id !== state.activeId);
   if (!choices.length) return showToast('Adicione outro jogo para usar a tela dividida');
   $('#splitGame').replaceChildren(...choices.map((game) => Object.assign(document.createElement('option'), { value: game.id, textContent: game.name })));
+  const savedPartner = localStorage.getItem(`split-partner:${state.activeId}`);
+  if (choices.some((game) => game.id === savedPartner)) $('#splitGame').value = savedPartner;
   $('#splitDialog').showModal();
 });
 $('#closeSplit').addEventListener('click', () => $('#splitDialog').close());
@@ -472,6 +569,7 @@ $('#splitForm').addEventListener('submit', (event) => {
   const secondary = state.games.find((game) => game.id === $('#splitGame').value);
   if (!secondary) return;
   state.splitId = secondary.id;
+  localStorage.setItem(`split-partner:${state.activeId}`, secondary.id);
   const view = createWebview(secondary);
   view.classList.add('active', 'split-secondary');
   els.stack.classList.add('split');
@@ -503,12 +601,14 @@ els.form.addEventListener('submit', async (event) => {
       id: $('#gameId').value || undefined,
       createdAt: existing?.createdAt,
       name: $('#gameName').value,
+      category: $('#gameCategory').value,
       url: $('#gameUrl').value,
       username: $('#gameUsername').value,
       password: $('#gamePassword').value,
       autoFill: $('#gameAutoFill').checked,
       muted: existing?.muted || false,
       keepActive: $('#gameKeepActive').checked,
+      restrictNavigation: $('#gameRestrictNavigation').checked,
       favorite: existing?.favorite || false,
       zoomFactor: existing?.zoomFactor || 1,
       icon: existing?.icon || '',
@@ -519,6 +619,7 @@ els.form.addEventListener('submit', async (event) => {
     const oldView = document.querySelector(`[data-view-id="${saved.id}"]`);
     if (oldView && existing?.url !== saved.url) oldView.remove();
     els.dialog.close();
+    renderCategoryFilter();
     renderList();
     openGame(saved.id);
     showToast('Jogo salvo com segurança');
@@ -608,6 +709,10 @@ $('#gameSearch').addEventListener('input', (event) => {
   state.search = event.target.value;
   renderList();
 });
+$('#categoryFilter').addEventListener('change', (event) => {
+  state.category = event.target.value;
+  renderList();
+});
 
 document.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', async () => {
   const game = activeGame();
@@ -634,6 +739,7 @@ $('#deleteGame').addEventListener('click', async () => {
   await window.drakoria.deleteGame(game.id, clearSession);
   document.querySelector(`[data-view-id="${game.id}"]`)?.remove();
   state.games = state.games.filter((entry) => entry.id !== game.id);
+  state.statuses.delete(game.id);
   state.activeId = null;
   els.popover.classList.add('hidden');
   els.toolbar.classList.add('hidden');
@@ -641,6 +747,7 @@ $('#deleteGame').addEventListener('click', async () => {
   els.welcome.classList.remove('hidden');
   document.title = 'OvelhaoHb Idles Hub';
   renderList();
+  renderCategoryFilter();
   showToast(clearSession ? 'Jogo e sessão removidos' : 'Jogo removido; sessão preservada');
 });
 
@@ -649,6 +756,17 @@ document.addEventListener('click', (event) => {
 });
 
 document.addEventListener('keydown', (event) => {
+  const shortcut = state.settings.hardReloadShortcut || 'both';
+  const hardReload = (event.key === 'F5' && ['F5', 'both'].includes(shortcut)) ||
+    (event.ctrlKey && event.shiftKey && String(event.key).toLowerCase() === 'r' && ['Ctrl+Shift+R', 'both'].includes(shortcut));
+  if (hardReload && !event.repeat) {
+    event.preventDefault();
+    const view = currentView();
+    if (view) {
+      view.reloadIgnoringCache();
+      showToast('Atualizando o jogo sem cache…');
+    }
+  }
   if (event.ctrlKey && event.key === 'Tab' && state.games.length > 1) {
     event.preventDefault();
     const currentIndex = Math.max(0, state.games.findIndex((game) => game.id === state.activeId));
@@ -667,14 +785,20 @@ document.addEventListener('keydown', (event) => {
 
 (async function init() {
   setSidebarCollapsed(localStorage.getItem('sidebar-collapsed') === 'true');
-  const [version, games, reminders] = await Promise.all([window.drakoria.getVersion(), window.drakoria.listGames(), window.drakoria.listReminders()]);
+  const [version, games, reminders, settings] = await Promise.all([window.drakoria.getVersion(), window.drakoria.listGames(), window.drakoria.listReminders(), window.drakoria.getSettings()]);
   $('#appVersion').textContent = `Versão ${version}`;
   state.games = games;
   state.reminders = reminders;
+  state.settings = settings;
   renderColors();
+  renderCategoryFilter();
   renderList();
   renderReminders();
   window.drakoria.onRemindersChanged(() => refreshReminders().catch(() => {}));
   window.drakoria.onUpdateStatus(showUpdateStatus);
+  window.drakoria.onNavigationBlocked(({ gameId }) => {
+    const game = currentGame(gameId);
+    showToast(`Navegação externa bloqueada${game ? ` em ${game.name}` : ''}`);
+  });
   window.drakoria.checkForUpdates().then(showUpdateStatus).catch(() => {});
 })();

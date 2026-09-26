@@ -4,6 +4,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { autoUpdater } = require('electron-updater');
 const { PostHog } = require('posthog-node');
+const { encryptBackup, decryptBackup } = require('./lib/portable-backup');
 
 // A chave de projeto do PostHog é destinada à coleta de eventos e é segura para
 // aplicativos públicos. Chaves pessoais e chaves secretas nunca são usadas aqui.
@@ -18,6 +19,7 @@ const reminderTimers = new Map();
 const gameContents = new Map();
 
 function sendUpdateStatus(status) {
+  recordUpdateStatus(status);
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('updates:status', status);
 }
 
@@ -97,6 +99,61 @@ function analyticsFile() {
   return path.join(app.getPath('userData'), 'analytics.json');
 }
 
+function settingsFile() {
+  return path.join(app.getPath('userData'), 'settings.json');
+}
+
+function updateHistoryFile() {
+  return path.join(app.getPath('userData'), 'update-history.json');
+}
+
+function readUpdateHistory() {
+  try {
+    const entries = JSON.parse(fs.readFileSync(updateHistoryFile(), 'utf8'));
+    return Array.isArray(entries) ? entries.slice(0, 30) : [];
+  } catch {
+    return [];
+  }
+}
+
+function recordUpdateStatus(status) {
+  if (!status || !['available', 'current', 'ready', 'error'].includes(status.state)) return;
+  const history = readUpdateHistory();
+  const last = history[0];
+  if (last?.state === status.state && last?.version === status.version) return;
+  const entries = [{ state: status.state, version: String(status.version || app.getVersion()), at: new Date().toISOString() }, ...history].slice(0, 30);
+  const target = updateHistoryFile();
+  const temporary = `${target}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(entries, null, 2), 'utf8');
+  fs.renameSync(temporary, target);
+}
+
+function readSettings() {
+  try {
+    const value = JSON.parse(fs.readFileSync(settingsFile(), 'utf8'));
+    return {
+      analyticsEnabled: value.analyticsEnabled !== false,
+      memorySaverEnabled: Boolean(value.memorySaverEnabled),
+      hardReloadShortcut: ['F5', 'Ctrl+Shift+R', 'both'].includes(value.hardReloadShortcut) ? value.hardReloadShortcut : 'both'
+    };
+  } catch {
+    return { analyticsEnabled: true, memorySaverEnabled: false, hardReloadShortcut: 'both' };
+  }
+}
+
+function writeSettings(input) {
+  const settings = {
+    analyticsEnabled: input?.analyticsEnabled !== false,
+    memorySaverEnabled: Boolean(input?.memorySaverEnabled),
+    hardReloadShortcut: ['F5', 'Ctrl+Shift+R', 'both'].includes(input?.hardReloadShortcut) ? input.hardReloadShortcut : 'both'
+  };
+  const target = settingsFile();
+  const temporary = `${target}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(settings, null, 2), 'utf8');
+  fs.renameSync(temporary, target);
+  return settings;
+}
+
 function installationId() {
   try {
     const data = JSON.parse(fs.readFileSync(analyticsFile(), 'utf8'));
@@ -109,7 +166,7 @@ function installationId() {
 
 function initializeAnalytics() {
   // Capturas automáticas de desenvolvimento não devem poluir as métricas reais.
-  if (process.env.DRAKORIA_CAPTURE) return;
+  if (process.env.DRAKORIA_CAPTURE || posthog || !readSettings().analyticsEnabled) return;
   posthog = new PostHog(POSTHOG_PROJECT_TOKEN, {
     host: POSTHOG_HOST,
     disableGeoip: true,
@@ -132,6 +189,17 @@ function track(event, properties = {}) {
       }
     });
   } catch {}
+}
+
+async function applyAnalyticsPreference(enabled) {
+  if (enabled) {
+    initializeAnalytics();
+    track('analytics_enabled');
+    return;
+  }
+  const active = posthog;
+  posthog = undefined;
+  await active?.shutdown().catch(() => {});
 }
 
 function readWindowState() {
@@ -256,6 +324,7 @@ function publicGame(game) {
   return {
     id: game.id,
     name: game.name,
+    category: String(game.category || ''),
     url: game.url,
     hasCredentials: Boolean(game.username || game.password),
     autoFill: Boolean(game.autoFill),
@@ -264,6 +333,7 @@ function publicGame(game) {
     favorite: Boolean(game.favorite),
     zoomFactor: Number.isFinite(game.zoomFactor) ? game.zoomFactor : 1,
     icon: String(game.icon || ''),
+    restrictNavigation: Boolean(game.restrictNavigation),
     color: game.color,
     createdAt: game.createdAt
   };
@@ -351,10 +421,94 @@ function normalizeUrl(raw) {
   return url.toString();
 }
 
+function createBackupPayload(includeCredentials) {
+  const games = readGames().map((game) => ({
+    ...game,
+    username: includeCredentials ? decrypt(game.username) : '',
+    password: includeCredentials ? decrypt(game.password) : ''
+  }));
+  return {
+    format: 2,
+    createdAt: new Date().toISOString(),
+    credentialsIncluded: includeCredentials,
+    games,
+    reminders: readReminders(),
+    notes: readNotes(),
+    companion: readCompanion()
+  };
+}
+
+function validateBackupPayload(backup) {
+  if (backup?.format !== 2 || !Array.isArray(backup.games) || !Array.isArray(backup.reminders) || !backup.notes || typeof backup.notes !== 'object') {
+    throw new Error('Este arquivo não é um backup válido do hub.');
+  }
+  if (backup.games.length > 500 || backup.reminders.length > 1000) {
+    throw new Error('O backup excede os limites suportados.');
+  }
+  return backup;
+}
+
+function normalizeRestoredGames(games, portableCredentials) {
+  const ids = new Set();
+  return games.map((game) => {
+    const id = normalizeId(game?.id);
+    if (ids.has(id)) throw new Error('O backup contém jogos duplicados.');
+    ids.add(id);
+    const name = String(game.name || '').trim().slice(0, 40);
+    if (!name) throw new Error('O backup contém um jogo sem nome.');
+    return {
+      id,
+      name,
+      category: String(game.category || '').trim().slice(0, 30),
+      url: normalizeUrl(String(game.url || '')),
+      username: portableCredentials ? encrypt(String(game.username || '')) : String(game.username || ''),
+      password: portableCredentials ? encrypt(String(game.password || '')) : String(game.password || ''),
+      autoFill: Boolean(game.autoFill),
+      muted: Boolean(game.muted),
+      keepActive: game.keepActive !== false,
+      favorite: Boolean(game.favorite),
+      zoomFactor: normalizeZoomFactor(game.zoomFactor),
+      icon: String(game.icon || ''),
+      restrictNavigation: Boolean(game.restrictNavigation),
+      color: normalizeColor(game.color),
+      createdAt: String(game.createdAt || new Date().toISOString())
+    };
+  });
+}
+
+function normalizeRestoredNotes(notes, gameIds) {
+  return Object.fromEntries(Object.entries(notes || {})
+    .filter(([id]) => gameIds.has(id))
+    .map(([id, value]) => [id, String(value || '').slice(0, 10000)]));
+}
+
+function normalizeRestoredCompanion(companion, gameIds) {
+  const clean = {};
+  for (const [id, value] of Object.entries(companion || {})) {
+    if (!gameIds.has(id) || !value || typeof value !== 'object') continue;
+    const tasks = Array.isArray(value.tasks) ? value.tasks.slice(0, 100).map((task) => ({ text: String(task.text || '').trim().slice(0, 160), done: Boolean(task.done) })).filter((task) => task.text) : [];
+    const links = Array.isArray(value.links) ? value.links.slice(0, 30).map((link) => ({ label: String(link.label || '').trim().slice(0, 80), url: normalizeUrl(String(link.url || '')) })).filter((link) => link.label) : [];
+    clean[id] = { tasks, links };
+  }
+  return clean;
+}
+
 function registerIpc() {
   ipcMain.handle('app:version', (event) => {
     assertHubSender(event);
     return app.getVersion();
+  });
+
+  ipcMain.handle('settings:get', (event) => {
+    assertHubSender(event);
+    return readSettings();
+  });
+
+  ipcMain.handle('settings:save', async (event, input) => {
+    assertHubSender(event);
+    const settings = writeSettings(input);
+    await applyAnalyticsPreference(settings.analyticsEnabled);
+    return settings;
   });
 
   ipcMain.handle('updates:check', (event) => {
@@ -380,30 +534,50 @@ function registerIpc() {
     return true;
   });
 
-  ipcMain.handle('backup:export', async (event) => {
+  ipcMain.handle('updates:history', (event) => {
+    assertHubSender(event);
+    return readUpdateHistory();
+  });
+
+  ipcMain.handle('updates:open-releases', (event) => {
+    assertHubSender(event);
+    return shell.openExternal('https://github.com/ovelhaohb/ovelhaohb-hub-idle/releases');
+  });
+
+  ipcMain.handle('backup:export', async (event, password = '') => {
     assertHubSender(event);
     const result = await dialog.showSaveDialog(mainWindow, { title: 'Exportar dados do hub', defaultPath: 'ovelhaohb-idles-hub-backup.json', filters: [{ name: 'Backup do hub', extensions: ['json'] }] });
     if (result.canceled || !result.filePath) return false;
-    const backup = { format: 1, createdAt: new Date().toISOString(), games: readGames(), reminders: readReminders(), notes: readNotes(), companion: readCompanion() };
+    const includeCredentials = Boolean(password);
+    const payload = createBackupPayload(includeCredentials);
+    const backup = includeCredentials ? encryptBackup(payload, password) : payload;
     fs.writeFileSync(result.filePath, JSON.stringify(backup, null, 2), 'utf8');
     track('backup_exported');
     return true;
   });
 
-  ipcMain.handle('backup:import', async (event) => {
+  ipcMain.handle('backup:import', async (event, password = '') => {
     assertHubSender(event);
     const result = await dialog.showOpenDialog(mainWindow, { title: 'Restaurar dados do hub', properties: ['openFile'], filters: [{ name: 'Backup do hub', extensions: ['json'] }] });
     if (result.canceled || !result.filePaths[0]) return false;
-    const backup = JSON.parse(fs.readFileSync(result.filePaths[0], 'utf8'));
-    if (backup?.format !== 1 || !Array.isArray(backup.games) || !Array.isArray(backup.reminders) || !backup.notes || typeof backup.notes !== 'object') throw new Error('Este arquivo não é um backup válido do hub.');
+    const source = JSON.parse(fs.readFileSync(result.filePaths[0], 'utf8'));
+    const legacy = source?.format === 1;
+    const backup = legacy ? source : validateBackupPayload(source.encrypted ? decryptBackup(source, password) : source);
+    if (legacy && (!Array.isArray(backup.games) || !Array.isArray(backup.reminders) || !backup.notes || typeof backup.notes !== 'object')) throw new Error('Este arquivo não é um backup válido do hub.');
     const stamp = Date.now();
     if (fs.existsSync(dataFile())) fs.copyFileSync(dataFile(), `${dataFile()}.${stamp}.pre-restore.bak`);
     if (fs.existsSync(remindersFile())) fs.copyFileSync(remindersFile(), `${remindersFile()}.${stamp}.pre-restore.bak`);
     if (fs.existsSync(notesFile())) fs.copyFileSync(notesFile(), `${notesFile()}.${stamp}.pre-restore.bak`);
-    writeGames(backup.games);
-    writeReminders(backup.reminders);
-    writeNotes(backup.notes);
-    if (backup.companion && typeof backup.companion === 'object' && !Array.isArray(backup.companion)) writeCompanion(backup.companion);
+    if (fs.existsSync(companionFile())) fs.copyFileSync(companionFile(), `${companionFile()}.${stamp}.pre-restore.bak`);
+    const restoredGames = normalizeRestoredGames(backup.games, !legacy);
+    const gameIds = new Set(restoredGames.map((game) => game.id));
+    const restoredReminders = backup.reminders.map(normalizeReminder);
+    const restoredNotes = normalizeRestoredNotes(backup.notes, gameIds);
+    const restoredCompanion = normalizeRestoredCompanion(backup.companion, gameIds);
+    writeGames(restoredGames);
+    writeReminders(restoredReminders);
+    writeNotes(restoredNotes);
+    writeCompanion(restoredCompanion);
     scheduleReminders();
     track('backup_imported');
     return true;
@@ -498,6 +672,7 @@ function registerIpc() {
     const clean = {
       id: input.id ? normalizeId(input.id) : crypto.randomUUID(),
       name: String(input.name || '').trim(),
+      category: String(input.category || '').trim().slice(0, 30),
       url: normalizeUrl(String(input.url || '').trim()),
       username: Object.hasOwn(input, 'username') ? encrypt(String(input.username || '')) : (existing?.username || ''),
       password: Object.hasOwn(input, 'password') ? encrypt(String(input.password || '')) : (existing?.password || ''),
@@ -507,6 +682,7 @@ function registerIpc() {
       favorite: Boolean(input.favorite),
       zoomFactor: normalizeZoomFactor(input.zoomFactor),
       icon: String(input.icon || ''),
+      restrictNavigation: Boolean(input.restrictNavigation),
       color: normalizeColor(input.color),
       createdAt: input.createdAt || now
     };
@@ -630,6 +806,26 @@ function createWindow() {
     const gameId = String(contents.getLastWebPreferences().partition || '').replace(/^persist:game-/, '');
     if (/^[a-zA-Z0-9-]{36}$/.test(gameId)) gameContents.set(gameId, contents);
     contents.once('destroyed', () => gameContents.delete(gameId));
+    contents.on('before-input-event', (event, input) => {
+      const shortcut = readSettings().hardReloadShortcut;
+      const isF5 = input.key === 'F5' && ['F5', 'both'].includes(shortcut);
+      const isCtrlShiftR = input.control && input.shift && String(input.key).toLowerCase() === 'r' && ['Ctrl+Shift+R', 'both'].includes(shortcut);
+      if (input.type !== 'keyDown' || (!isF5 && !isCtrlShiftR) || input.isAutoRepeat) return;
+      event.preventDefault();
+      contents.reloadIgnoringCache();
+    });
+    const protectNavigation = (event, url) => {
+      try {
+        const game = readGames().find((entry) => entry.id === gameId);
+        if (!game?.restrictNavigation || new URL(url).origin === new URL(game.url).origin) return;
+        event.preventDefault();
+        mainWindow.webContents.send('navigation:blocked', { gameId, url });
+      } catch {
+        event.preventDefault();
+      }
+    };
+    contents.on('will-navigate', protectNavigation);
+    contents.on('will-redirect', protectNavigation);
     contents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
     contents.setWindowOpenHandler(({ url }) => {
       try {
