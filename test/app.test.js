@@ -63,3 +63,30 @@ test('webviews negam permissões por padrão', () => {
   assert.match(main, /setPermissionRequestHandler/);
   assert.match(main, /callback\(false\)/);
 });
+
+test('IdleHub mantém grupos, atividade e monitoramento local', () => {
+  const main = read('src/main.js');
+  const preload = read('src/preload.js');
+  const renderer = read('src/renderer/app.js');
+  assert.match(main, /groups:save/);
+  assert.match(main, /monitors:save/);
+  assert.match(main, /did-fail-load/);
+  assert.match(main, /app\.getAppMetrics\(\)/);
+  assert.match(preload, /listGroups/);
+  assert.match(renderer, /renderActivity/);
+});
+
+test('a identidade do produto é IdleHub', () => {
+  const packageJson = JSON.parse(read('package.json'));
+  const html = read('src/renderer/index.html');
+  assert.equal(packageJson.name, 'idlehub');
+  assert.equal(packageJson.build.productName, 'IdleHub');
+  assert.match(html, /by ovelhaohb/);
+});
+
+test('backup sem senha não leva dados de integrações externas', () => {
+  const main = read('src/main.js');
+  assert.match(main, /function backupSettings\(includeSecrets\)/);
+  assert.match(main, /discordWebhook: includeSecrets \? settings\.discordWebhook : ''/);
+  assert.match(main, /telegramBotToken: includeSecrets \? settings\.telegramBotToken : ''/);
+});

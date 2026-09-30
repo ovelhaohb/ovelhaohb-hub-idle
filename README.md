@@ -1,6 +1,8 @@
-# OvelhaoHb Idles Hub
+# IdleHub
 
-Um hub desktop privado para reunir jogos idle de navegador em uma única aplicação. Ele mantém cada jogo em uma sessão isolada, preserva logins localmente e oferece recursos para acompanhar a rotina de jogo sem abrir várias janelas do navegador.
+by ovelhaohb
+
+Um hub desktop privado, feito por ovelhaohb, para reunir jogos idle de navegador em uma única aplicação. Ele mantém cada jogo em uma sessão isolada, preserva logins localmente e oferece recursos para acompanhar a rotina de jogo sem abrir várias janelas do navegador.
 
 ## Recursos
 
@@ -16,6 +18,8 @@ Um hub desktop privado para reunir jogos idle de navegador em uma única aplica�
 - Modo econômico, proteção opcional contra mudança de domínio e atalhos configuráveis.
 - Controle de telemetria, histórico de atualizações e acesso a versões anteriores.
 - Recuperação limitada de processos que pararem inesperadamente.
+- Grupos de contas, histórico local de atividade e monitoramento opcional de textos na página.
+- Alertas locais e, se configurados, Discord ou Telegram. Os identificadores dessas integrações ficam cifrados no cofre do sistema.
 
 ## Privacidade
 

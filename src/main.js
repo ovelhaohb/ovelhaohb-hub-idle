@@ -17,6 +17,8 @@ let isQuitting = false;
 let posthog;
 const reminderTimers = new Map();
 const gameContents = new Map();
+const monitorTimers = new Map();
+const alertCooldowns = new Map();
 
 function sendUpdateStatus(status) {
   recordUpdateStatus(status);
@@ -91,6 +93,71 @@ function companionFile() {
   return path.join(app.getPath('userData'), 'game-companion.json');
 }
 
+function groupsFile() { return path.join(app.getPath('userData'), 'groups.json'); }
+function eventsFile() { return path.join(app.getPath('userData'), 'game-events.json'); }
+function monitorsFile() { return path.join(app.getPath('userData'), 'game-monitors.json'); }
+
+function readJson(file, fallback) {
+  try { const value = JSON.parse(fs.readFileSync(file, 'utf8')); return value ?? fallback; } catch { return fallback; }
+}
+
+function writeJson(file, value) {
+  const temporary = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(value, null, 2), 'utf8');
+  fs.renameSync(temporary, file);
+}
+
+function readGroups() { const groups = readJson(groupsFile(), []); return Array.isArray(groups) ? groups : []; }
+function writeGroups(groups) { writeJson(groupsFile(), groups); }
+function readEvents() { const events = readJson(eventsFile(), []); return Array.isArray(events) ? events.slice(0, 500) : []; }
+function writeEvents(events) { writeJson(eventsFile(), events.slice(0, 500)); }
+function readMonitors() { const monitors = readJson(monitorsFile(), {}); return monitors && typeof monitors === 'object' ? monitors : {}; }
+function writeMonitors(monitors) { writeJson(monitorsFile(), monitors); }
+
+function recordGameEvent(gameId, type, details = '') {
+  const events = [{ id: crypto.randomUUID(), gameId, type, details: String(details).slice(0, 240), at: new Date().toISOString() }, ...readEvents()];
+  writeEvents(events);
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('games:event', events[0]);
+  return events[0];
+}
+
+function showAlert(game, title, body, key = title) {
+  if (!readSettings().alertsEnabled) return;
+  const cooldownKey = `${game.id}:${key}`;
+  if (Date.now() - (alertCooldowns.get(cooldownKey) || 0) < 60_000) return;
+  alertCooldowns.set(cooldownKey, Date.now());
+  if (Notification.isSupported()) new Notification({ title: `IdleHub — ${title}`, body: `${game.name}: ${body}` }).show();
+  const settings = readSettings();
+  const message = `**IdleHub — ${title}**\n${game.name}: ${body}`;
+  if (/^https:\/\/discord(?:app)?\.com\/api\/webhooks\//i.test(settings.discordWebhook)) {
+    fetch(settings.discordWebhook, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: message }) }).catch(() => {});
+  }
+  if (settings.telegramBotToken && settings.telegramChatId) {
+    fetch(`https://api.telegram.org/bot${encodeURIComponent(settings.telegramBotToken)}/sendMessage`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ chat_id: settings.telegramChatId, text: `IdleHub — ${title}\n${game.name}: ${body}` }) }).catch(() => {});
+  }
+}
+
+function stopMonitoring(gameId) {
+  const timer = monitorTimers.get(gameId);
+  if (timer) clearInterval(timer);
+  monitorTimers.delete(gameId);
+}
+
+function startMonitoring(gameId, contents) {
+  stopMonitoring(gameId);
+  const inspect = async () => {
+    const game = readGames().find((entry) => entry.id === gameId);
+    const texts = readMonitors()[gameId]?.texts || [];
+    if (!game || !texts.length || contents.isDestroyed()) return;
+    try {
+      const visibleText = await contents.executeJavaScript('document.body ? document.body.innerText.slice(0, 200000) : ""', true);
+      const found = texts.find((text) => visibleText.toLocaleLowerCase('pt-BR').includes(text.toLocaleLowerCase('pt-BR')));
+      if (found) { recordGameEvent(gameId, 'watched-text', found); showAlert(game, 'Texto encontrado', found, `text:${found}`); }
+    } catch {}
+  };
+  monitorTimers.set(gameId, setInterval(inspect, 30_000));
+}
+
 function windowStateFile() {
   return path.join(app.getPath('userData'), 'window-state.json');
 }
@@ -134,10 +201,14 @@ function readSettings() {
     return {
       analyticsEnabled: value.analyticsEnabled !== false,
       memorySaverEnabled: Boolean(value.memorySaverEnabled),
-      hardReloadShortcut: ['F5', 'Ctrl+Shift+R', 'both'].includes(value.hardReloadShortcut) ? value.hardReloadShortcut : 'both'
+      hardReloadShortcut: ['F5', 'Ctrl+Shift+R', 'both'].includes(value.hardReloadShortcut) ? value.hardReloadShortcut : 'both',
+      alertsEnabled: value.alertsEnabled !== false,
+      discordWebhook: decrypt(value.discordWebhook),
+      telegramBotToken: decrypt(value.telegramBotToken),
+      telegramChatId: decrypt(value.telegramChatId)
     };
   } catch {
-    return { analyticsEnabled: true, memorySaverEnabled: false, hardReloadShortcut: 'both' };
+    return { analyticsEnabled: true, memorySaverEnabled: false, hardReloadShortcut: 'both', alertsEnabled: true, discordWebhook: '', telegramBotToken: '', telegramChatId: '' };
   }
 }
 
@@ -145,7 +216,11 @@ function writeSettings(input) {
   const settings = {
     analyticsEnabled: input?.analyticsEnabled !== false,
     memorySaverEnabled: Boolean(input?.memorySaverEnabled),
-    hardReloadShortcut: ['F5', 'Ctrl+Shift+R', 'both'].includes(input?.hardReloadShortcut) ? input.hardReloadShortcut : 'both'
+    hardReloadShortcut: ['F5', 'Ctrl+Shift+R', 'both'].includes(input?.hardReloadShortcut) ? input.hardReloadShortcut : 'both',
+    alertsEnabled: input?.alertsEnabled !== false,
+    discordWebhook: encrypt(String(input?.discordWebhook || '')),
+    telegramBotToken: encrypt(String(input?.telegramBotToken || '')),
+    telegramChatId: encrypt(String(input?.telegramChatId || ''))
   };
   const target = settingsFile();
   const temporary = `${target}.${process.pid}.tmp`;
@@ -335,6 +410,7 @@ function publicGame(game) {
     icon: String(game.icon || ''),
     restrictNavigation: Boolean(game.restrictNavigation),
     color: game.color,
+    groupId: String(game.groupId || ''),
     createdAt: game.createdAt
   };
 }
@@ -405,7 +481,7 @@ function fireReminder(id) {
   writeReminders(reminders);
   scheduleReminder(reminder);
   if (Notification.isSupported()) {
-    const notification = new Notification({ title: 'OvelhaoHb Idles Hub', body: reminder.title });
+    const notification = new Notification({ title: 'IdleHub', body: reminder.title });
     notification.on('click', () => {
       if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
     });
@@ -421,6 +497,19 @@ function normalizeUrl(raw) {
   return url.toString();
 }
 
+function backupSettings(includeSecrets) {
+  const settings = readSettings();
+  return {
+    analyticsEnabled: settings.analyticsEnabled,
+    memorySaverEnabled: settings.memorySaverEnabled,
+    hardReloadShortcut: settings.hardReloadShortcut,
+    alertsEnabled: settings.alertsEnabled,
+    discordWebhook: includeSecrets ? settings.discordWebhook : '',
+    telegramBotToken: includeSecrets ? settings.telegramBotToken : '',
+    telegramChatId: includeSecrets ? settings.telegramChatId : ''
+  };
+}
+
 function createBackupPayload(includeCredentials) {
   const games = readGames().map((game) => ({
     ...game,
@@ -434,7 +523,11 @@ function createBackupPayload(includeCredentials) {
     games,
     reminders: readReminders(),
     notes: readNotes(),
-    companion: readCompanion()
+    companion: readCompanion(),
+    groups: readGroups(),
+    monitors: readMonitors(),
+    events: readEvents(),
+    settings: backupSettings(includeCredentials)
   };
 }
 
@@ -471,6 +564,7 @@ function normalizeRestoredGames(games, portableCredentials) {
       icon: String(game.icon || ''),
       restrictNavigation: Boolean(game.restrictNavigation),
       color: normalizeColor(game.color),
+      groupId: String(game.groupId || ''),
       createdAt: String(game.createdAt || new Date().toISOString())
     };
   });
@@ -546,7 +640,7 @@ function registerIpc() {
 
   ipcMain.handle('backup:export', async (event, password = '') => {
     assertHubSender(event);
-    const result = await dialog.showSaveDialog(mainWindow, { title: 'Exportar dados do hub', defaultPath: 'ovelhaohb-idles-hub-backup.json', filters: [{ name: 'Backup do hub', extensions: ['json'] }] });
+    const result = await dialog.showSaveDialog(mainWindow, { title: 'Exportar dados do hub', defaultPath: 'idlehub-backup.json', filters: [{ name: 'Backup do hub', extensions: ['json'] }] });
     if (result.canceled || !result.filePath) return false;
     const includeCredentials = Boolean(password);
     const payload = createBackupPayload(includeCredentials);
@@ -578,6 +672,10 @@ function registerIpc() {
     writeReminders(restoredReminders);
     writeNotes(restoredNotes);
     writeCompanion(restoredCompanion);
+    writeGroups(Array.isArray(backup.groups) ? backup.groups.slice(0, 100) : []);
+    writeMonitors(backup.monitors && typeof backup.monitors === 'object' ? backup.monitors : {});
+    writeEvents(Array.isArray(backup.events) ? backup.events : []);
+    if (backup.settings && typeof backup.settings === 'object') writeSettings(backup.settings);
     scheduleReminders();
     track('backup_imported');
     return true;
@@ -586,6 +684,35 @@ function registerIpc() {
   ipcMain.handle('games:list', (event) => {
     assertHubSender(event);
     return readGames().map(publicGame);
+  });
+
+  ipcMain.handle('groups:list', (event) => { assertHubSender(event); return readGroups(); });
+  ipcMain.handle('groups:save', (event, input) => {
+    assertHubSender(event);
+    const name = String(input?.name || '').trim().slice(0, 40);
+    if (!name) throw new Error('Informe um nome para o grupo.');
+    const groups = readGroups();
+    const group = { id: input?.id ? normalizeId(input.id) : crypto.randomUUID(), name, color: normalizeColor(input?.color), createdAt: input?.createdAt || new Date().toISOString() };
+    const index = groups.findIndex((entry) => entry.id === group.id);
+    if (index >= 0) groups[index] = group; else groups.push(group);
+    writeGroups(groups);
+    return group;
+  });
+  ipcMain.handle('groups:delete', (event, rawId) => {
+    assertHubSender(event); const id = normalizeId(rawId);
+    writeGroups(readGroups().filter((group) => group.id !== id));
+    const games = readGames().map((game) => game.groupId === id ? { ...game, groupId: '' } : game); writeGames(games);
+    return true;
+  });
+  ipcMain.handle('events:list', (event, rawId = '') => {
+    assertHubSender(event); const id = rawId ? normalizeId(rawId) : '';
+    return readEvents().filter((entry) => !id || entry.gameId === id).slice(0, 100);
+  });
+  ipcMain.handle('monitors:get', (event, rawId) => { assertHubSender(event); return readMonitors()[normalizeId(rawId)] || { texts: [] }; });
+  ipcMain.handle('monitors:save', (event, rawId, input) => {
+    assertHubSender(event); const id = normalizeId(rawId);
+    const texts = Array.isArray(input?.texts) ? input.texts.map((text) => String(text).trim().slice(0, 80)).filter(Boolean).slice(0, 20) : [];
+    const monitors = readMonitors(); monitors[id] = { texts }; writeMonitors(monitors); return monitors[id];
   });
 
   ipcMain.handle('games:credentials', (event, rawId) => {
@@ -684,6 +811,7 @@ function registerIpc() {
       icon: String(input.icon || ''),
       restrictNavigation: Boolean(input.restrictNavigation),
       color: normalizeColor(input.color),
+      groupId: String(input.groupId || ''),
       createdAt: input.createdAt || now
     };
     if (!clean.name) throw new Error('Informe um nome para o jogo.');
@@ -708,15 +836,12 @@ function registerIpc() {
 
   ipcMain.handle('games:diagnostics', async (event) => {
     assertHubSender(event);
-    const entries = await Promise.all([...gameContents.entries()].map(async ([id, contents]) => {
-      try {
-        const memory = await contents.getProcessMemoryInfo();
-        return { id, processId: contents.getOSProcessId(), memory: memory.private || memory.residentSet || 0 };
-      } catch {
-        return { id, processId: null, memory: null };
-      }
-    }));
-    return entries;
+    const metrics = app.getAppMetrics();
+    return [...gameContents.entries()].map(([id, contents]) => {
+      const processId = contents.getOSProcessId();
+      const metric = metrics.find((entry) => entry.pid === processId);
+      return { id, processId, memory: metric?.memory?.privateBytes ? Math.round(metric.memory.privateBytes / 1024) : null, cpu: metric?.cpu?.percentCPUUsage ?? null };
+    });
   });
 
   ipcMain.handle('external:open', (event, url) => {
@@ -804,8 +929,23 @@ function createWindow() {
 
   mainWindow.webContents.on('did-attach-webview', (_event, contents) => {
     const gameId = String(contents.getLastWebPreferences().partition || '').replace(/^persist:game-/, '');
-    if (/^[a-zA-Z0-9-]{36}$/.test(gameId)) gameContents.set(gameId, contents);
-    contents.once('destroyed', () => gameContents.delete(gameId));
+    if (/^[a-zA-Z0-9-]{36}$/.test(gameId)) {
+      gameContents.set(gameId, contents);
+      startMonitoring(gameId, contents);
+    }
+    contents.once('destroyed', () => { gameContents.delete(gameId); stopMonitoring(gameId); });
+    contents.on('did-finish-load', () => recordGameEvent(gameId, 'loaded', contents.getURL()));
+    contents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (!isMainFrame) return;
+      const game = readGames().find((entry) => entry.id === gameId);
+      recordGameEvent(gameId, 'load-failed', `${errorCode}: ${errorDescription}`);
+      if (game) showAlert(game, 'Falha ao carregar', errorDescription || validatedURL, 'load-failed');
+    });
+    contents.on('render-process-gone', (_event, details) => {
+      const game = readGames().find((entry) => entry.id === gameId);
+      recordGameEvent(gameId, 'process-gone', details?.reason || 'unknown');
+      if (game) showAlert(game, 'Jogo interrompido', 'O processo precisou ser recuperado.', 'process-gone');
+    });
     contents.on('before-input-event', (event, input) => {
       const shortcut = readSettings().hardReloadShortcut;
       const isF5 = input.key === 'F5' && ['F5', 'both'].includes(shortcut);
@@ -867,7 +1007,7 @@ function createTray() {
     mainWindow.show();
     mainWindow.focus();
   };
-  tray.setToolTip('OvelhaoHb Idles Hub');
+  tray.setToolTip('IdleHub by ovelhaohb');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Mostrar hub', click: showWindow },
     { type: 'separator' },

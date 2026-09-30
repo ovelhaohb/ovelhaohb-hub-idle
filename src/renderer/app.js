@@ -1,7 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 const colors = ['#8b5cf6', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ef476f'];
 
-const state = { games: [], activeId: null, splitId: null, selectedColor: colors[0], passwordVisible: false, recovery: new Map(), statuses: new Map(), search: '', category: '', reminders: [], companion: { tasks: [], links: [] }, settings: { analyticsEnabled: true, memorySaverEnabled: false, hardReloadShortcut: 'both' } };
+const state = { games: [], groups: [], activeId: null, splitId: null, selectedColor: colors[0], passwordVisible: false, recovery: new Map(), statuses: new Map(), search: '', category: '', reminders: [], companion: { tasks: [], links: [] }, settings: { analyticsEnabled: true, memorySaverEnabled: false, hardReloadShortcut: 'both', alertsEnabled: true } };
 const els = {
   list: $('#gameList'), count: $('#gameCount'), welcome: $('#welcome'), toolbar: $('#toolbar'),
   stack: $('#webviewStack'), address: $('#addressText'), dialog: $('#gameDialog'), form: $('#gameForm'),
@@ -72,6 +72,20 @@ function renderCategoryFilter() {
   select.replaceChildren(Object.assign(document.createElement('option'), { value: '', textContent: 'Todas as categorias' }), ...categories.map((category) => Object.assign(document.createElement('option'), { value: category, textContent: category })));
   if (categories.includes(state.category)) select.value = state.category;
   else state.category = '';
+}
+
+function renderGroups() {
+  const select = $('#gameGroup');
+  if (select) select.replaceChildren(Object.assign(document.createElement('option'), { value: '', textContent: 'Sem grupo' }), ...state.groups.map((group) => Object.assign(document.createElement('option'), { value: group.id, textContent: group.name })));
+  const list = $('#groupList');
+  if (!list) return;
+  list.replaceChildren(...state.groups.map((group) => {
+    const row = document.createElement('div'); row.className = 'companion-row';
+    const label = document.createElement('span'); label.textContent = group.name;
+    const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '×';
+    remove.onclick = async () => { await window.drakoria.deleteGroup(group.id); state.groups = await window.drakoria.listGroups(); state.games = await window.drakoria.listGames(); renderGroups(); renderList(); };
+    row.append(label, remove); return row;
+  }));
 }
 
 function setGameStatus(gameId, status) {
@@ -217,7 +231,7 @@ function createWebview(game) {
   view.addEventListener('dom-ready', () => {
     if (state.activeId === game.id && !els.dialog.open) view.focus();
   });
-  view.addEventListener('page-title-updated', (event) => { if (state.activeId === game.id) document.title = `${event.title} — OvelhaoHb Idles Hub`; });
+  view.addEventListener('page-title-updated', (event) => { if (state.activeId === game.id) document.title = `${event.title} — IdleHub`; });
   view.addEventListener('render-process-gone', (event) => {
     if (['clean-exit', 'killed'].includes(event.details?.reason)) return;
     setGameStatus(game.id, 'error');
@@ -289,6 +303,8 @@ async function openDialog(game = null, credentialsOnly = false) {
   $('#gameId').value = game?.id || '';
   $('#gameName').value = game?.name || '';
   $('#gameCategory').value = game?.category || '';
+  renderGroups();
+  $('#gameGroup').value = game?.groupId || '';
   $('#gameUrl').value = game?.url || '';
   let credentials = { username: '', password: '' };
   if (game?.hasCredentials) {
@@ -383,7 +399,7 @@ async function renderDiagnostics() {
       const title = document.createElement('strong');
       title.textContent = game?.name || 'Jogo removido';
       const details = document.createElement('small');
-      details.textContent = entry.processId ? `Processo ${entry.processId}` : 'Processo indisponível';
+      details.textContent = entry.processId ? `Processo ${entry.processId}${Number.isFinite(entry.cpu) ? ` · CPU ${entry.cpu.toFixed(1)}%` : ''}` : 'Processo indisponível';
       content.append(title, details);
       const memory = document.createElement('span');
       memory.className = 'diagnostics-memory';
@@ -462,6 +478,17 @@ $('#dismissUpdate').addEventListener('click', () => $('#updateBanner').classList
 $('#notes').addEventListener('click', openNotes);
 $('#addTask').addEventListener('click', () => { const text = $('#taskText').value.trim(); if (!text) return; state.companion.tasks.push({ text, done: false }); $('#taskText').value = ''; renderCompanion(); });
 $('#addLink').addEventListener('click', () => { const label = $('#linkLabel').value.trim(); const url = $('#linkUrl').value.trim(); if (!label || !url) return showToast('Informe nome e endereço do link'); state.companion.links.push({ label, url }); $('#linkLabel').value = ''; $('#linkUrl').value = ''; renderCompanion(); });
+async function renderActivity() {
+  const game = activeGame(); if (!game) return;
+  const [monitor, events] = await Promise.all([window.drakoria.getMonitor(game.id), window.drakoria.listEvents(game.id)]);
+  $('#watchedTexts').value = (monitor.texts || []).join(', ');
+  const list = $('#activityList');
+  list.replaceChildren(...(events.length ? events.map((entry) => Object.assign(document.createElement('div'), { className: 'diagnostics-item', textContent: `${new Date(entry.at).toLocaleString('pt-BR')} — ${entry.type}${entry.details ? `: ${entry.details}` : ''}` })) : [Object.assign(document.createElement('p'), { className: 'reminder-empty', textContent: 'Ainda não há eventos para este jogo.' })]));
+}
+$('#activity').addEventListener('click', async () => { const game = activeGame(); if (!game) return; $('#activityGameName').textContent = `Atividade — ${game.name}`; $('#activityError').textContent = ''; $('#activityDialog').showModal(); await renderActivity(); });
+$('#closeActivity').addEventListener('click', () => { $('#activityDialog').close(); currentView()?.focus(); });
+$('#refreshActivity').addEventListener('click', () => renderActivity().catch(() => {}));
+$('#saveActivity').addEventListener('click', async () => { const game = activeGame(); if (!game) return; try { await window.drakoria.saveMonitor(game.id, { texts: $('#watchedTexts').value.split(',') }); await renderActivity(); showToast('Monitoramento salvo'); } catch (error) { $('#activityError').textContent = error.message || 'Não foi possível salvar'; } });
 $('#diagnostics').addEventListener('click', async () => { $('#diagnosticsDialog').showModal(); await renderDiagnostics(); });
 $('#closeDiagnostics').addEventListener('click', () => { $('#diagnosticsDialog').close(); currentView()?.focus(); });
 $('#refreshDiagnostics').addEventListener('click', renderDiagnostics);
@@ -512,6 +539,10 @@ $('#importBackup').addEventListener('click', async () => {
 $('#settings').addEventListener('click', async () => {
   $('#analyticsEnabled').checked = state.settings.analyticsEnabled !== false;
   $('#memorySaverEnabled').checked = Boolean(state.settings.memorySaverEnabled);
+  $('#alertsEnabled').checked = state.settings.alertsEnabled !== false;
+  $('#discordWebhook').value = state.settings.discordWebhook || '';
+  $('#telegramBotToken').value = state.settings.telegramBotToken || '';
+  $('#telegramChatId').value = state.settings.telegramChatId || '';
   $('#hardReloadShortcut').value = state.settings.hardReloadShortcut || 'both';
   $('#settingsError').textContent = '';
   const history = $('#updateHistory');
@@ -532,6 +563,10 @@ $('#settings').addEventListener('click', async () => {
 });
 $('#openPreviousVersions').addEventListener('click', () => window.drakoria.openPreviousVersions());
 $('#closeSettings').addEventListener('click', () => $('#settingsDialog').close());
+$('#addGroup').addEventListener('click', async () => {
+  const name = $('#groupName').value.trim(); if (!name) return;
+  try { await window.drakoria.saveGroup({ name, color: colors[state.groups.length % colors.length] }); $('#groupName').value = ''; state.groups = await window.drakoria.listGroups(); renderGroups(); showToast('Grupo criado'); } catch (error) { $('#settingsError').textContent = error.message || 'Não foi possível criar o grupo'; }
+});
 $('#cancelSettings').addEventListener('click', () => $('#settingsDialog').close());
 $('#settingsForm').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -539,6 +574,10 @@ $('#settingsForm').addEventListener('submit', async (event) => {
     state.settings = await window.drakoria.saveSettings({
       analyticsEnabled: $('#analyticsEnabled').checked,
       memorySaverEnabled: $('#memorySaverEnabled').checked,
+      alertsEnabled: $('#alertsEnabled').checked,
+      discordWebhook: $('#discordWebhook').value,
+      telegramBotToken: $('#telegramBotToken').value,
+      telegramChatId: $('#telegramChatId').value,
       hardReloadShortcut: $('#hardReloadShortcut').value
     });
     $('#settingsDialog').close();
@@ -602,6 +641,7 @@ els.form.addEventListener('submit', async (event) => {
       createdAt: existing?.createdAt,
       name: $('#gameName').value,
       category: $('#gameCategory').value,
+      groupId: $('#gameGroup').value,
       url: $('#gameUrl').value,
       username: $('#gameUsername').value,
       password: $('#gamePassword').value,
@@ -745,7 +785,7 @@ $('#deleteGame').addEventListener('click', async () => {
   els.toolbar.classList.add('hidden');
   els.stack.style.display = 'none';
   els.welcome.classList.remove('hidden');
-  document.title = 'OvelhaoHb Idles Hub';
+  document.title = 'IdleHub — by ovelhaohb';
   renderList();
   renderCategoryFilter();
   showToast(clearSession ? 'Jogo e sessão removidos' : 'Jogo removido; sessão preservada');
@@ -785,13 +825,15 @@ document.addEventListener('keydown', (event) => {
 
 (async function init() {
   setSidebarCollapsed(localStorage.getItem('sidebar-collapsed') === 'true');
-  const [version, games, reminders, settings] = await Promise.all([window.drakoria.getVersion(), window.drakoria.listGames(), window.drakoria.listReminders(), window.drakoria.getSettings()]);
+  const [version, games, groups, reminders, settings] = await Promise.all([window.drakoria.getVersion(), window.drakoria.listGames(), window.drakoria.listGroups(), window.drakoria.listReminders(), window.drakoria.getSettings()]);
   $('#appVersion').textContent = `Versão ${version}`;
   state.games = games;
+  state.groups = groups;
   state.reminders = reminders;
   state.settings = settings;
   renderColors();
   renderCategoryFilter();
+  renderGroups();
   renderList();
   renderReminders();
   window.drakoria.onRemindersChanged(() => refreshReminders().catch(() => {}));

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: https: http:; font-src 'self'; frame-src https: http:;" />
-    <title>OvelhaoHb Idles Hub</title>
+    <title>IdleHub — by ovelhaohb</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -12,7 +12,7 @@
       <button class="sidebar-toggle" id="toggleSidebar" aria-label="Recolher barra lateral" title="Recolher barra lateral">
         <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="3" width="15" height="14" rx="2"/><path d="M7 3v14M12.5 7.5 10 10l2.5 2.5"/></svg>
       </button>
-      <div class="brand-mini"><span class="mini-sheep">●</span> OVELHAOHB IDLES HUB</div>
+      <div class="brand-mini"><span class="mini-sheep">●</span> IDLEHUB <small>by ovelhaohb</small></div>
     </div>
 
     <main class="app-shell">
@@ -21,7 +21,7 @@
           <div class="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 64 64"><path class="sheep-wool" d="M18 48c-6 0-10-4-10-10 0-4 2-7 5-9-1-2-1-4-1-6 0-6 5-11 11-11 2-5 7-8 13-8 7 0 12 4 14 10 5 1 9 6 9 12 0 4-2 8-6 10 0 7-5 12-12 12H18Z"/><path class="sheep-face" d="M35 20c8 0 14 6 14 14 0 9-6 15-14 15s-14-6-14-15c0-8 6-14 14-14Z"/><path class="sheep-ear" d="M22 26c-7-1-10 2-9 7 5 2 9 1 11-2m24-5c7-1 10 2 9 7-5 2-9 1-11-2"/><circle cx="30" cy="34" r="2"/><circle cx="40" cy="34" r="2"/><path class="sheep-nose" d="M32 41c2 2 4 2 6 0"/></svg>
           </div>
-          <div><strong>OvelhaoHb</strong><span>IDLES HUB</span></div>
+          <div><strong>IdleHub</strong><span>by ovelhaohb</span></div>
         </div>
 
         <button class="add-button" id="addGame"><span>＋</span> Adicionar jogo</button>
@@ -56,6 +56,7 @@
           <button class="icon-button" id="diagnostics" aria-label="Abrir diagnóstico" title="Diagnóstico">▥</button>
           <button class="icon-button" id="backup" aria-label="Backup e restauração" title="Backup e restauração">⇅</button>
           <button class="icon-button" id="splitView" aria-label="Abrir dois jogos lado a lado" title="Dois jogos lado a lado">▯</button>
+          <button class="icon-button" id="activity" aria-label="Abrir atividade" title="Atividade e textos monitorados">◷</button>
           <button class="credentials-button" id="credentials">⌘ <span>Login</span></button>
           <button class="icon-button" id="favorite" aria-label="Favoritar jogo" title="Favoritar jogo">☆</button>
           <button class="icon-button" id="external" aria-label="Abrir no navegador">↗</button>
@@ -92,6 +93,7 @@
         <label class="game-details-field">Nome do jogo<input id="gameName" maxlength="40" placeholder="Ex.: Melvor Idle" required /></label>
         <label class="game-details-field">Categoria<input id="gameCategory" maxlength="30" placeholder="Ex.: RPG, estratégia, fazenda" /></label>
         <label class="game-details-field">Endereço do jogo<input id="gameUrl" type="text" placeholder="https://..." required /></label>
+        <label class="game-details-field">Grupo<select id="gameGroup"><option value="">Sem grupo</option></select></label>
         <div class="field-row">
           <label>Usuário ou e-mail<input id="gameUsername" autocomplete="off" placeholder="Opcional" /></label>
           <label>Senha<input id="gamePassword" type="password" autocomplete="new-password" placeholder="Opcional" /></label>
@@ -112,6 +114,15 @@
       <div class="dialog-actions"><button type="button" class="secondary-button" id="refreshDiagnostics">Atualizar</button></div>
     </dialog>
 
+    <dialog id="activityDialog">
+      <div class="dialog-head"><div><p class="eyebrow">ATIVIDADE</p><h2 id="activityGameName">Monitoramento local</h2></div><button type="button" class="close-button" id="closeActivity">×</button></div>
+      <p class="diagnostics-copy">Palavras encontradas na página podem gerar alerta local. Não executa ações no jogo.</p>
+      <label class="game-details-field">Textos monitorados, separados por vírgula<input id="watchedTexts" maxlength="1600" placeholder="Ex.: verificação, conexão perdida" /></label>
+      <div class="diagnostics-list" id="activityList"></div>
+      <p class="form-error" id="activityError"></p>
+      <div class="dialog-actions"><button type="button" class="secondary-button" id="refreshActivity">Atualizar</button><button type="button" class="primary-button" id="saveActivity">Salvar monitoramento</button></div>
+    </dialog>
+
     <dialog id="backupDialog">
       <div class="dialog-head"><div><p class="eyebrow">BACKUP PORTÁTIL</p><h2>Proteger ou restaurar dados</h2></div><button type="button" class="close-button" id="closeBackup">×</button></div>
       <p class="diagnostics-copy">Use uma senha para levar também os logins. Sem senha, o backup não incluirá credenciais.</p>
@@ -129,6 +140,10 @@
         <div class="dialog-head"><div><p class="eyebrow">PRIVACIDADE</p><h2>Configurações do hub</h2></div><button type="button" class="close-button" id="closeSettings">×</button></div>
         <label class="setting-option"><input id="analyticsEnabled" type="checkbox" /> <span><strong>Compartilhar telemetria anônima</strong><small>Envia somente versão, sistema e eventos gerais do hub. Nunca envia jogos, URLs, logins ou notas.</small></span></label>
         <label class="setting-option"><input id="memorySaverEnabled" type="checkbox" /> <span><strong>Economizar memória</strong><small>Descarrega jogos inativos que não estejam marcados para permanecer ativos. Cookies e progresso local são preservados.</small></span></label>
+        <label class="setting-option"><input id="alertsEnabled" type="checkbox" /> <span><strong>Receber alertas de monitoramento</strong><small>Exibe avisos locais para falhas e textos acompanhados.</small></span></label>
+        <label class="game-details-field">Webhook do Discord<input id="discordWebhook" type="url" autocomplete="off" placeholder="Opcional: https://discord.com/api/webhooks/..." /></label>
+        <div class="field-row"><label>Token do bot Telegram<input id="telegramBotToken" type="password" autocomplete="new-password" placeholder="Opcional" /></label><label>Chat ID do Telegram<input id="telegramChatId" autocomplete="off" placeholder="Opcional" /></label></div>
+        <div class="update-history-section"><strong>Grupos</strong><div class="companion-add"><input id="groupName" maxlength="40" placeholder="Ex.: Contas principais" /><button type="button" id="addGroup">Criar grupo</button></div><div id="groupList"></div></div>
         <label class="game-details-field">Atalho para recarregar sem cache<select id="hardReloadShortcut"><option value="both">F5 e Ctrl+Shift+R</option><option value="F5">Somente F5</option><option value="Ctrl+Shift+R">Somente Ctrl+Shift+R</option></select></label>
         <div class="update-history-section"><strong>Histórico de atualizações</strong><div id="updateHistory"></div><button type="button" class="secondary-button" id="openPreviousVersions">Ver versões anteriores</button></div>
         <p class="form-error" id="settingsError"></p>
