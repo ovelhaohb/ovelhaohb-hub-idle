@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { autoUpdater } = require('electron-updater');
 const { PostHog } = require('posthog-node');
 const { encryptBackup, decryptBackup } = require('./lib/portable-backup');
+const { attachGameNavigation } = require('./lib/game-navigation');
 
 // A chave de projeto do PostHog é destinada à coleta de eventos e é segura para
 // aplicativos públicos. Chaves pessoais e chaves secretas nunca são usadas aqui.
@@ -407,6 +408,7 @@ function publicGame(game) {
     keepActive: game.keepActive !== false,
     favorite: Boolean(game.favorite),
     zoomFactor: Number.isFinite(game.zoomFactor) ? game.zoomFactor : 1,
+    mobileMode: Boolean(game.mobileMode),
     icon: String(game.icon || ''),
     restrictNavigation: Boolean(game.restrictNavigation),
     color: game.color,
@@ -561,6 +563,7 @@ function normalizeRestoredGames(games, portableCredentials) {
       keepActive: game.keepActive !== false,
       favorite: Boolean(game.favorite),
       zoomFactor: normalizeZoomFactor(game.zoomFactor),
+      mobileMode: Boolean(game.mobileMode),
       icon: String(game.icon || ''),
       restrictNavigation: Boolean(game.restrictNavigation),
       color: normalizeColor(game.color),
@@ -808,6 +811,7 @@ function registerIpc() {
       keepActive: input.keepActive !== false,
       favorite: Boolean(input.favorite),
       zoomFactor: normalizeZoomFactor(input.zoomFactor),
+      mobileMode: Boolean(input.mobileMode),
       icon: String(input.icon || ''),
       restrictNavigation: Boolean(input.restrictNavigation),
       color: normalizeColor(input.color),
@@ -905,7 +909,10 @@ function createWindow() {
       if (process.env.OVELHAOHB_CAPTURE_GAME) {
         await mainWindow.webContents.executeJavaScript("document.querySelector('.game-item')?.click()");
       }
-      const captureDelay = process.env.OVELHAOHB_CAPTURE_GAME ? 5000 : 1200;
+      const configuredCaptureDelay = Number(process.env.OVELHAOHB_CAPTURE_DELAY);
+      const captureDelay = Number.isFinite(configuredCaptureDelay) && configuredCaptureDelay > 0
+        ? configuredCaptureDelay
+        : (process.env.OVELHAOHB_CAPTURE_GAME ? 5000 : 1200);
       setTimeout(async () => {
         try {
           const image = await mainWindow.capturePage();
@@ -954,27 +961,20 @@ function createWindow() {
       event.preventDefault();
       contents.reloadIgnoringCache();
     });
-    const protectNavigation = (event, url) => {
-      try {
-        const game = readGames().find((entry) => entry.id === gameId);
-        if (!game?.restrictNavigation || new URL(url).origin === new URL(game.url).origin) return;
-        event.preventDefault();
-        mainWindow.webContents.send('navigation:blocked', { gameId, url });
-      } catch {
-        event.preventDefault();
-      }
-    };
-    contents.on('will-navigate', protectNavigation);
-    contents.on('will-redirect', protectNavigation);
-    contents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
-    contents.setWindowOpenHandler(({ url }) => {
-      try {
-        const parsed = new URL(url);
-        if (['http:', 'https:'].includes(parsed.protocol)) shell.openExternal(parsed.toString());
-      } catch {}
-      return { action: 'deny' };
+    attachGameNavigation(contents, {
+      getGame: () => readGames().find((entry) => entry.id === gameId),
+      onBlocked: (url) => mainWindow.webContents.send('navigation:blocked', { gameId, url })
     });
-
+    // Jogos podem copiar resultados para a área de transferência, como em um
+    // navegador comum. Outras permissões permanecem negadas.
+    const canUseClipboard = (permission, sourceUrl) => {
+      if (!['clipboard-sanitized-write', 'clipboard-write'].includes(permission)) return false;
+      try { return new URL(sourceUrl || contents.getURL()).protocol === 'https:'; } catch { return false; }
+    };
+    contents.session.setPermissionCheckHandler((_webContents, permission, requestingOrigin) =>
+      canUseClipboard(permission, requestingOrigin));
+    contents.session.setPermissionRequestHandler((_webContents, permission, callback, details) =>
+      callback(canUseClipboard(permission, details?.requestingUrl)));
     if (process.env.OVELHAOHB_TEST_GAME_INPUT) {
       contents.once('dom-ready', () => setTimeout(async () => {
         try {

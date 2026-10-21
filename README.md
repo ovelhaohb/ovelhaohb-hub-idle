@@ -9,6 +9,7 @@ Um hub desktop privado, feito por ovelhaohb, para reunir jogos idle de navegador
 - Sessões persistentes e isoladas por jogo.
 - Credenciais protegidas pelo cofre do sistema operacional.
 - Controle de som, zoom, favoritos, busca e atalhos entre jogos.
+- Layout mobile opcional por jogo, preservando o user-agent e a sessão.
 - Lembretes recorrentes com notificações nativas do sistema.
 - Notas locais para estratégias, metas, links e checklists de cada jogo.
 - Perfil por jogo para manter a atividade em segundo plano ou economizar recursos.
@@ -33,17 +34,17 @@ Baixe a versão mais recente na página de [Releases](https://github.com/ovelhao
 
 ### Windows
 
-Baixe **`OvelhaoHb Idles Hub Setup x.y.z.exe`** para instalar o hub. Esse formato recebe avisos de atualização dentro do próprio aplicativo. Execute o instalador e mantenha a mesma pasta usada pela versão anterior quando estiver atualizando.
+Baixe **`IdleHub Setup x.y.z.exe`** para instalar o hub. Esse formato recebe avisos de atualização dentro do próprio aplicativo. Execute o instalador e mantenha a mesma pasta usada pela versão anterior quando estiver atualizando.
 
-Para usar sem instalação, baixe **`OvelhaoHb Idles Hub x.y.z.exe`**. A versão portátil não se atualiza automaticamente: substitua o arquivo manualmente ao baixar uma versão nova.
+Para usar sem instalação, baixe **`IdleHub x.y.z.exe`**. A versão portátil não se atualiza automaticamente: substitua o arquivo manualmente ao baixar uma versão nova.
 
 ### Linux
 
 Baixe o arquivo **`.AppImage`**, marque-o como executável e abra-o:
 
 ```bash
-chmod +x OvelhaoHb-Idles-Hub-*.AppImage
-./OvelhaoHb-Idles-Hub-*.AppImage
+chmod +x IdleHub-*.AppImage
+./IdleHub-*.AppImage
 ```
 
 ### macOS
@@ -64,6 +65,8 @@ O VS Code recomenda ESLint, Prettier, Error Lens, Code Spell Checker e GitLens a
 
 Para gerar um pacote local, execute `npm run dist`.
 
+Antes de publicar, execute `npm run verify`, `npm run secrets:check` e `node scripts/check-secrets.js --all`. O scanner verifica os arquivos preparados no índice do Git; mantenha dados locais e credenciais fora do repositório.
+
 ## Releases
 
 As releases oficiais são criadas pelo GitHub Actions ao publicar uma tag no formato `v*`. O fluxo gera artefatos nativos para Windows, Linux e macOS e os anexa à release correspondente no GitHub.
@@ -71,6 +74,8 @@ As releases oficiais são criadas pelo GitHub Actions ao publicar uma tag no for
 A versão em uso aparece no rodapé da barra lateral. Toda atualização publicada incrementa a versão do aplicativo e recebe uma tag correspondente no GitHub.
 
 Os backups de desenvolvimento são mantidos fora do repositório para não incluir dados pessoais ou arquivos de sessão no histórico do projeto.
+
+Consulte as mudanças de cada versão no [histórico de versões](CHANGELOG.md).
 
 ## Assinatura de releases
 

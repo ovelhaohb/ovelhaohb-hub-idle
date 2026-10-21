@@ -24,5 +24,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: node scripts/check-secrets.js --all
       - run: npm run verify
       - run: npm run pack

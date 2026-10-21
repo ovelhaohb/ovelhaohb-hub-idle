@@ -34,8 +34,8 @@ test('F5 recarrega sem cache com foco no hub ou no jogo', () => {
 test('proteção de navegação e modo econômico estão conectados', () => {
   const main = read('src/main.js');
   const renderer = read('src/renderer/app.js');
-  assert.match(main, /contents\.on\('will-navigate', protectNavigation\)/);
-  assert.match(main, /contents\.on\('will-redirect', protectNavigation\)/);
+  assert.match(main, /attachGameNavigation\(contents, \{/);
+  assert.match(main, /require\('\.\/lib\/game-navigation'\)/);
   assert.match(renderer, /state\.settings\.memorySaverEnabled/);
   assert.match(renderer, /inactiveView\.remove\(\)/);
 });
@@ -61,7 +61,7 @@ test('histórico e retorno manual para versões anteriores estão expostos', () 
 test('webviews negam permissões por padrão', () => {
   const main = read('src/main.js');
   assert.match(main, /setPermissionRequestHandler/);
-  assert.match(main, /callback\(false\)/);
+  assert.match(main, /callback\(canUseClipboard/);
 });
 
 test('IdleHub mantém grupos, atividade e monitoramento local', () => {

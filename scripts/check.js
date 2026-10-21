@@ -6,6 +6,7 @@ const files = [
   'src/preload.js',
   'src/renderer/app.js',
   'src/lib/portable-backup.js',
+  'src/lib/game-navigation.js',
   'scripts/start.js'
 ];
 

@@ -122,6 +122,35 @@ function updateZoomControls() {
   if (button) button.textContent = `${Math.round((game?.zoomFactor || 1) * 100)}%`;
 }
 
+function updateMobileModeButton() {
+  const button = $('#mobileMode');
+  const mobileMode = Boolean(activeGame()?.mobileMode);
+  button.classList.toggle('mobile-mode-active', mobileMode);
+  button.title = mobileMode ? 'Usar layout desktop' : 'Usar layout mobile';
+  button.setAttribute('aria-label', button.title);
+}
+
+function applyGameDisplayMode(view, game) {
+  // Alguns jogos vinculam a sessão ao user-agent. O viewport físico já aciona
+  // o layout responsivo sem trocar a identidade do navegador ou a sessão.
+  view.classList.toggle('mobile-view', Boolean(game?.mobileMode));
+}
+
+async function toggleMobileMode() {
+  const game = activeGame();
+  const view = currentView();
+  if (!game || !view) return;
+  const mobileMode = !game.mobileMode;
+  try {
+    const saved = await saveGameChanges(game, { mobileMode });
+    applyGameDisplayMode(view, saved);
+    updateMobileModeButton();
+    showToast(mobileMode ? 'Layout mobile ativado' : 'Layout desktop ativado');
+  } catch {
+    showToast('Não foi possível alterar o layout');
+  }
+}
+
 async function changeZoom(delta = 0, reset = false) {
   const game = activeGame();
   const view = currentView();
@@ -191,12 +220,16 @@ function createWebview(game) {
   view.tabIndex = 0;
   view.dataset.viewId = game.id;
   view.setAttribute('partition', `persist:game-${game.id}`);
+  view.setAttribute('allowpopups', '');
   view.setAttribute('webpreferences', 'backgroundThrottling=no, spellcheck=no');
+  applyGameDisplayMode(view, game);
   view.addEventListener('dom-ready', () => {
     const latestGame = currentGame(game.id);
     try { view.setAudioMuted(Boolean(latestGame?.muted)); } catch {}
     try { view.setBackgroundThrottling(latestGame?.keepActive === false); } catch {}
     try { view.setZoomFactor(latestGame?.zoomFactor || 1); } catch {}
+    // Drakoria now provides its own asynchronous preset dialog. Let the game
+    // handle it directly so clicks and confirmation reach the same form.
     view.executeJavaScript(`(() => {
       const icon = document.querySelector('link[rel~="icon"]')?.href;
       return icon || new URL('/favicon.ico', location.origin).href;
@@ -278,6 +311,7 @@ function openGame(id) {
   updateMuteButton();
   updateFavoriteButton();
   updateZoomControls();
+  updateMobileModeButton();
   els.popover.classList.add('hidden');
   renderList();
   if (state.settings.memorySaverEnabled) {
@@ -651,6 +685,7 @@ els.form.addEventListener('submit', async (event) => {
       restrictNavigation: $('#gameRestrictNavigation').checked,
       favorite: existing?.favorite || false,
       zoomFactor: existing?.zoomFactor || 1,
+      mobileMode: existing?.mobileMode || false,
       icon: existing?.icon || '',
       color: state.selectedColor
     });
@@ -706,6 +741,7 @@ $('#reload').addEventListener('click', () => currentView()?.reload());
 $('#zoomOut').addEventListener('click', () => changeZoom(-0.1));
 $('#zoomIn').addEventListener('click', () => changeZoom(0.1));
 $('#zoomReset').addEventListener('click', () => changeZoom(0, true));
+$('#mobileMode').addEventListener('click', toggleMobileMode);
 $('#mute').addEventListener('click', async () => {
   const game = activeGame();
   const view = currentView();
