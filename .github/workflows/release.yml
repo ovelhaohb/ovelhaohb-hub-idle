@@ -51,3 +51,12 @@ jobs:
             export APPLE_TEAM_ID="$NOTARIZE_APPLE_TEAM_ID"
           fi
           npm run release
+      - name: Remover arquivos blockmap da release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name | select(endswith(".blockmap"))' |
+          while IFS= read -r asset; do
+            gh release delete-asset "$GITHUB_REF_NAME" "$asset" --repo "$GITHUB_REPOSITORY" --yes
+          done

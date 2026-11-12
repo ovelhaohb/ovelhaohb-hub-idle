@@ -19,7 +19,7 @@ Um hub desktop privado, feito por ovelhaohb, para reunir jogos idle de navegador
 - Modo econômico, proteção opcional contra mudança de domínio e atalhos configuráveis.
 - Controle de telemetria, histórico de atualizações e acesso a versões anteriores.
 - Recuperação limitada de processos que pararem inesperadamente.
-- Grupos de contas, histórico local de atividade e monitoramento opcional de textos na página.
+- Grupos de contas e alertas locais para falhas de carregamento ou interrupção do jogo.
 - Alertas locais e, se configurados, Discord ou Telegram. Os identificadores dessas integrações ficam cifrados no cofre do sistema.
 
 ## Privacidade
@@ -57,7 +57,7 @@ Baixe o arquivo **`.dmg`**, abra-o e arraste o hub para a pasta **Applications**
 2. Execute `npm start`.
 3. Adicione um jogo, informe o endereço e, se desejar, salve as credenciais para preenchimento manual ou automático.
 
-Atalhos úteis: dentro do hub, `F5` atualiza o jogo ignorando o cache; `Ctrl+Tab` e `Ctrl+Shift+Tab` trocam de jogo; `Ctrl` + `+`, `Ctrl` + `-` e `Ctrl` + `0` ajustam o zoom. Fechar a janela mantém o hub ativo na bandeja do sistema; use **Sair** no menu da bandeja para encerrar completamente.
+Atalhos úteis: `Ctrl+Tab` ou `Ctrl+PageDown` abre o próximo jogo; `Ctrl+Shift+Tab` ou `Ctrl+PageUp` volta ao anterior, inclusive com o foco dentro do jogo. `F5` atualiza o jogo ignorando o cache; `Ctrl` + `+`, `Ctrl` + `-` e `Ctrl` + `0` ajustam o zoom. Fechar a janela mantém o hub ativo na bandeja do sistema; use **Sair** no menu da bandeja para encerrar completamente.
 
 ## Desenvolvimento
 

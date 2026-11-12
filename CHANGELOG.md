@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 1.3.3 — 2026-11-12
+
+- Aviso de atualização em destaque, com opções para baixar e instalar.
+- Atalhos para alternar entre jogos, mesmo com o foco dentro deles.
+- Removidos Diagnóstico, Atividade e Texto monitorado, incluindo a verificação periódica das páginas.
+- Jogos novos permitem navegação externa por padrão; a configuração dos jogos existentes é preservada.
+- Corrigida a descoberta dos testes locais para não executar cópias de backup.
+
 ## 1.3.2 — 2026-10-21
 
 - Corrigida a renomeação dos presets de caçada do Drakoria Idle: o Hub usa o formulário do próprio jogo, sem abrir uma segunda caixa nem interceptar sua confirmação.

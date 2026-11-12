@@ -328,6 +328,13 @@ function openGame(id) {
 
 function currentView() { return document.querySelector('.game-view.active.split-primary') || document.querySelector('.game-view.active'); }
 
+function switchGame(direction) {
+  if (state.games.length < 2) return;
+  const currentIndex = Math.max(0, state.games.findIndex((game) => game.id === state.activeId));
+  const nextIndex = (currentIndex + direction + state.games.length) % state.games.length;
+  openGame(state.games[nextIndex].id);
+}
+
 async function openDialog(game = null, credentialsOnly = false) {
   currentView()?.blur();
   els.form.reset();
@@ -348,7 +355,7 @@ async function openDialog(game = null, credentialsOnly = false) {
   $('#gamePassword').value = credentials.password || '';
   $('#gameAutoFill').checked = Boolean(game?.autoFill);
   $('#gameKeepActive').checked = game?.keepActive !== false;
-  $('#gameRestrictNavigation').checked = game ? Boolean(game.restrictNavigation) : true;
+  $('#gameRestrictNavigation').checked = Boolean(game?.restrictNavigation);
   state.selectedColor = game?.color || colors[0];
   renderColors();
   els.popover.classList.add('hidden');
@@ -377,14 +384,15 @@ function showToast(message) {
 
 function showUpdateStatus(status) {
   const banner = $('#updateBanner');
+  const title = $('#updateTitle');
   const message = $('#updateMessage');
   const action = $('#updateAction');
   if (!status || ['current', 'development'].includes(status.state)) return banner.classList.add('hidden');
-  if (status.state === 'checking') { message.textContent = 'Verificando atualizações…'; action.classList.add('hidden'); }
-  if (status.state === 'available') { message.textContent = `Versão ${status.version} disponível`; action.textContent = 'Baixar'; action.classList.remove('hidden'); action.onclick = () => window.drakoria.downloadUpdate(); }
-  if (status.state === 'downloading') { message.textContent = `Baixando atualização: ${status.percent || 0}%`; action.classList.add('hidden'); }
-  if (status.state === 'ready') { message.textContent = `Versão ${status.version} pronta`; action.textContent = 'Instalar e reiniciar'; action.classList.remove('hidden'); action.onclick = () => window.drakoria.installUpdate(); }
-  if (status.state === 'error') { message.textContent = 'Não foi possível verificar atualizações'; action.textContent = 'Tentar novamente'; action.classList.remove('hidden'); action.onclick = () => window.drakoria.checkForUpdates(); }
+  if (status.state === 'checking') { title.textContent = 'Buscando atualizações'; message.textContent = 'Aguarde enquanto verificamos novas versões.'; action.classList.add('hidden'); }
+  if (status.state === 'available') { title.textContent = 'Nova atualização disponível!'; message.textContent = `A versão ${status.version} do IdleHub está pronta para baixar.`; action.textContent = 'Baixar atualização'; action.classList.remove('hidden'); action.onclick = () => window.drakoria.downloadUpdate(); }
+  if (status.state === 'downloading') { title.textContent = 'Baixando atualização'; message.textContent = `Progresso: ${status.percent || 0}%`; action.classList.add('hidden'); }
+  if (status.state === 'ready') { title.textContent = 'Atualização pronta para instalar!'; message.textContent = `A versão ${status.version} foi baixada. O IdleHub será reiniciado para concluir a instalação.`; action.textContent = 'Instalar e reiniciar'; action.classList.remove('hidden'); action.onclick = () => window.drakoria.installUpdate(); }
+  if (status.state === 'error') { title.textContent = 'Atualização indisponível'; message.textContent = 'Não foi possível concluir a atualização. Tente novamente.'; action.textContent = 'Tentar novamente'; action.classList.remove('hidden'); action.onclick = () => window.drakoria.checkForUpdates(); }
   banner.classList.remove('hidden');
 }
 
@@ -409,39 +417,6 @@ function renderCompanion() {
   const tasks = $('#taskList'); const links = $('#linkList');
   tasks.replaceChildren(...state.companion.tasks.map((task, index) => { const row = document.createElement('div'); row.className = 'companion-row'; const check = document.createElement('input'); check.type = 'checkbox'; check.checked = task.done; check.addEventListener('change', () => { task.done = check.checked; }); const text = document.createElement('span'); text.textContent = task.text; const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '×'; remove.onclick = () => { state.companion.tasks.splice(index, 1); renderCompanion(); }; row.append(check, text, remove); return row; }));
   links.replaceChildren(...state.companion.links.map((link, index) => { const row = document.createElement('div'); row.className = 'companion-row'; const anchor = document.createElement('a'); anchor.href = link.url; anchor.textContent = link.label; anchor.target = '_blank'; const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '×'; remove.onclick = () => { state.companion.links.splice(index, 1); renderCompanion(); }; row.append(anchor, remove); return row; }));
-}
-
-function formatMemory(kilobytes) {
-  if (!Number.isFinite(kilobytes)) return 'Indisponível';
-  return kilobytes >= 1024 ? `${(kilobytes / 1024).toFixed(1)} MB` : `${Math.round(kilobytes)} KB`;
-}
-
-async function renderDiagnostics() {
-  const list = $('#diagnosticsList');
-  list.replaceChildren(Object.assign(document.createElement('p'), { className: 'reminder-empty', textContent: 'Atualizando…' }));
-  try {
-    const diagnostics = await window.drakoria.getDiagnostics();
-    if (!diagnostics.length) {
-      list.replaceChildren(Object.assign(document.createElement('p'), { className: 'reminder-empty', textContent: 'Nenhum jogo foi carregado nesta sessão.' }));
-      return;
-    }
-    list.replaceChildren(...diagnostics.map((entry) => {
-      const game = state.games.find((item) => item.id === entry.id);
-      const item = document.createElement('div');
-      item.className = 'diagnostics-item';
-      const content = document.createElement('div');
-      const title = document.createElement('strong');
-      title.textContent = game?.name || 'Jogo removido';
-      const details = document.createElement('small');
-      details.textContent = entry.processId ? `Processo ${entry.processId}${Number.isFinite(entry.cpu) ? ` · CPU ${entry.cpu.toFixed(1)}%` : ''}` : 'Processo indisponível';
-      content.append(title, details);
-      const memory = document.createElement('span');
-      memory.className = 'diagnostics-memory';
-      memory.textContent = formatMemory(entry.memory);
-      item.append(content, memory);
-      return item;
-    }));
-  } catch { list.replaceChildren(Object.assign(document.createElement('p'), { className: 'reminder-empty', textContent: 'Não foi possível obter o diagnóstico.' })); }
 }
 
 function formatReminderTime(value) {
@@ -512,20 +487,6 @@ $('#dismissUpdate').addEventListener('click', () => $('#updateBanner').classList
 $('#notes').addEventListener('click', openNotes);
 $('#addTask').addEventListener('click', () => { const text = $('#taskText').value.trim(); if (!text) return; state.companion.tasks.push({ text, done: false }); $('#taskText').value = ''; renderCompanion(); });
 $('#addLink').addEventListener('click', () => { const label = $('#linkLabel').value.trim(); const url = $('#linkUrl').value.trim(); if (!label || !url) return showToast('Informe nome e endereço do link'); state.companion.links.push({ label, url }); $('#linkLabel').value = ''; $('#linkUrl').value = ''; renderCompanion(); });
-async function renderActivity() {
-  const game = activeGame(); if (!game) return;
-  const [monitor, events] = await Promise.all([window.drakoria.getMonitor(game.id), window.drakoria.listEvents(game.id)]);
-  $('#watchedTexts').value = (monitor.texts || []).join(', ');
-  const list = $('#activityList');
-  list.replaceChildren(...(events.length ? events.map((entry) => Object.assign(document.createElement('div'), { className: 'diagnostics-item', textContent: `${new Date(entry.at).toLocaleString('pt-BR')} — ${entry.type}${entry.details ? `: ${entry.details}` : ''}` })) : [Object.assign(document.createElement('p'), { className: 'reminder-empty', textContent: 'Ainda não há eventos para este jogo.' })]));
-}
-$('#activity').addEventListener('click', async () => { const game = activeGame(); if (!game) return; $('#activityGameName').textContent = `Atividade — ${game.name}`; $('#activityError').textContent = ''; $('#activityDialog').showModal(); await renderActivity(); });
-$('#closeActivity').addEventListener('click', () => { $('#activityDialog').close(); currentView()?.focus(); });
-$('#refreshActivity').addEventListener('click', () => renderActivity().catch(() => {}));
-$('#saveActivity').addEventListener('click', async () => { const game = activeGame(); if (!game) return; try { await window.drakoria.saveMonitor(game.id, { texts: $('#watchedTexts').value.split(',') }); await renderActivity(); showToast('Monitoramento salvo'); } catch (error) { $('#activityError').textContent = error.message || 'Não foi possível salvar'; } });
-$('#diagnostics').addEventListener('click', async () => { $('#diagnosticsDialog').showModal(); await renderDiagnostics(); });
-$('#closeDiagnostics').addEventListener('click', () => { $('#diagnosticsDialog').close(); currentView()?.focus(); });
-$('#refreshDiagnostics').addEventListener('click', renderDiagnostics);
 $('#backup').addEventListener('click', () => {
   $('#backupPassword').value = '';
   $('#backupError').textContent = '';
@@ -843,11 +804,12 @@ document.addEventListener('keydown', (event) => {
       showToast('Atualizando o jogo sem cache…');
     }
   }
-  if (event.ctrlKey && event.key === 'Tab' && state.games.length > 1) {
+  const switchDirection = event.ctrlKey && !event.alt && !event.meta
+    ? (event.key === 'Tab' ? (event.shiftKey ? -1 : 1) : (event.key === 'PageDown' ? 1 : (event.key === 'PageUp' ? -1 : 0)))
+    : 0;
+  if (switchDirection) {
     event.preventDefault();
-    const currentIndex = Math.max(0, state.games.findIndex((game) => game.id === state.activeId));
-    const direction = event.shiftKey ? -1 : 1;
-    openGame(state.games[(currentIndex + direction + state.games.length) % state.games.length].id);
+    switchGame(switchDirection);
   }
   if (event.ctrlKey && ['+', '=', '-'].includes(event.key)) {
     event.preventDefault();
@@ -878,5 +840,6 @@ document.addEventListener('keydown', (event) => {
     const game = currentGame(gameId);
     showToast(`Navegação externa bloqueada${game ? ` em ${game.name}` : ''}`);
   });
+  window.drakoria.onGameSwitchRequest(({ direction }) => switchGame(direction));
   window.drakoria.checkForUpdates().then(showUpdateStatus).catch(() => {});
 })();

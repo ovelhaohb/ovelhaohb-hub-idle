@@ -54,10 +54,8 @@
           <button class="icon-button" id="mute" aria-label="Silenciar aba" title="Silenciar aba">🔊</button>
           <button class="icon-button" id="reminders" aria-label="Abrir lembretes" title="Lembretes">⏱</button>
           <button class="icon-button" id="notes" aria-label="Abrir notas do jogo" title="Notas do jogo">▤</button>
-          <button class="icon-button" id="diagnostics" aria-label="Abrir diagnóstico" title="Diagnóstico">▥</button>
           <button class="icon-button" id="backup" aria-label="Backup e restauração" title="Backup e restauração">⇅</button>
           <button class="icon-button" id="splitView" aria-label="Abrir dois jogos lado a lado" title="Dois jogos lado a lado">▯</button>
-          <button class="icon-button" id="activity" aria-label="Abrir atividade" title="Atividade e textos monitorados">◷</button>
           <button class="credentials-button" id="credentials">⌘ <span>Login</span></button>
           <button class="icon-button" id="favorite" aria-label="Favoritar jogo" title="Favoritar jogo">☆</button>
           <button class="icon-button" id="external" aria-label="Abrir no navegador">↗</button>
@@ -82,7 +80,7 @@
         </section>
 
         <section class="webview-stack" id="webviewStack"></section>
-        <div class="update-banner hidden" id="updateBanner"><span id="updateMessage"></span><button id="updateAction"></button><button class="update-dismiss" id="dismissUpdate" aria-label="Fechar aviso">×</button></div>
+        <div class="update-banner hidden" id="updateBanner" role="status" aria-live="polite"><div class="update-copy"><strong id="updateTitle">Atualização do IdleHub</strong><span id="updateMessage"></span></div><button id="updateAction" type="button"></button><button class="update-dismiss" id="dismissUpdate" type="button" aria-label="Fechar aviso">×</button></div>
         <div class="loading-bar" id="loadingBar"></div>
       </section>
     </main>
@@ -101,32 +99,16 @@
         </div>
         <label class="autofill-option"><input id="gameAutoFill" type="checkbox" /> Preencher automaticamente ao abrir este jogo</label>
         <label class="autofill-option"><input id="gameKeepActive" type="checkbox" checked /> Manter ativo em segundo plano (usa mais recursos)</label>
-        <label class="autofill-option"><input id="gameRestrictNavigation" type="checkbox" checked /> Bloquear saídas para outros domínios</label>
+        <label class="autofill-option"><input id="gameRestrictNavigation" type="checkbox" /> Bloquear saídas para outros domínios</label>
         <div class="color-field"><span>Cor do atalho</span><div id="colorOptions"></div></div>
         <p class="form-error" id="formError"></p>
         <div class="dialog-actions"><button type="button" class="secondary-button" id="cancelDialog">Cancelar</button><button type="submit" class="primary-button">Salvar jogo</button></div>
       </form>
     </dialog>
 
-    <dialog id="diagnosticsDialog">
-      <div class="diagnostics-head"><div><p class="eyebrow">DIAGNÓSTICO</p><h2>Uso dos jogos ativos</h2></div><button type="button" class="close-button" id="closeDiagnostics">×</button></div>
-      <p class="diagnostics-copy">Memória do processo de cada jogo carregado nesta sessão.</p>
-      <div class="diagnostics-list" id="diagnosticsList"></div>
-      <div class="dialog-actions"><button type="button" class="secondary-button" id="refreshDiagnostics">Atualizar</button></div>
-    </dialog>
-
-    <dialog id="activityDialog">
-      <div class="dialog-head"><div><p class="eyebrow">ATIVIDADE</p><h2 id="activityGameName">Monitoramento local</h2></div><button type="button" class="close-button" id="closeActivity">×</button></div>
-      <p class="diagnostics-copy">Palavras encontradas na página podem gerar alerta local. Não executa ações no jogo.</p>
-      <label class="game-details-field">Textos monitorados, separados por vírgula<input id="watchedTexts" maxlength="1600" placeholder="Ex.: verificação, conexão perdida" /></label>
-      <div class="diagnostics-list" id="activityList"></div>
-      <p class="form-error" id="activityError"></p>
-      <div class="dialog-actions"><button type="button" class="secondary-button" id="refreshActivity">Atualizar</button><button type="button" class="primary-button" id="saveActivity">Salvar monitoramento</button></div>
-    </dialog>
-
     <dialog id="backupDialog">
       <div class="dialog-head"><div><p class="eyebrow">BACKUP PORTÁTIL</p><h2>Proteger ou restaurar dados</h2></div><button type="button" class="close-button" id="closeBackup">×</button></div>
-      <p class="diagnostics-copy">Use uma senha para levar também os logins. Sem senha, o backup não incluirá credenciais.</p>
+      <p class="dialog-copy">Use uma senha para levar também os logins. Sem senha, o backup não incluirá credenciais.</p>
       <label class="game-details-field">Senha do backup<input id="backupPassword" type="password" minlength="8" autocomplete="new-password" placeholder="Mínimo de 8 caracteres" /></label>
       <p class="form-error" id="backupError"></p>
       <div class="backup-actions">
@@ -141,7 +123,7 @@
         <div class="dialog-head"><div><p class="eyebrow">PRIVACIDADE</p><h2>Configurações do hub</h2></div><button type="button" class="close-button" id="closeSettings">×</button></div>
         <label class="setting-option"><input id="analyticsEnabled" type="checkbox" /> <span><strong>Compartilhar telemetria anônima</strong><small>Envia somente versão, sistema e eventos gerais do hub. Nunca envia jogos, URLs, logins ou notas.</small></span></label>
         <label class="setting-option"><input id="memorySaverEnabled" type="checkbox" /> <span><strong>Economizar memória</strong><small>Descarrega jogos inativos que não estejam marcados para permanecer ativos. Cookies e progresso local são preservados.</small></span></label>
-        <label class="setting-option"><input id="alertsEnabled" type="checkbox" /> <span><strong>Receber alertas de monitoramento</strong><small>Exibe avisos locais para falhas e textos acompanhados.</small></span></label>
+        <label class="setting-option"><input id="alertsEnabled" type="checkbox" /> <span><strong>Receber alertas de falha</strong><small>Exibe avisos locais quando um jogo não carrega ou interrompe inesperadamente.</small></span></label>
         <label class="game-details-field">Webhook do Discord<input id="discordWebhook" type="url" autocomplete="off" placeholder="Opcional: https://discord.com/api/webhooks/..." /></label>
         <div class="field-row"><label>Token do bot Telegram<input id="telegramBotToken" type="password" autocomplete="new-password" placeholder="Opcional" /></label><label>Chat ID do Telegram<input id="telegramChatId" autocomplete="off" placeholder="Opcional" /></label></div>
         <div class="update-history-section"><strong>Grupos</strong><div class="companion-add"><input id="groupName" maxlength="40" placeholder="Ex.: Contas principais" /><button type="button" id="addGroup">Criar grupo</button></div><div id="groupList"></div></div>

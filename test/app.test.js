@@ -64,16 +64,28 @@ test('webviews negam permissões por padrão', () => {
   assert.match(main, /callback\(canUseClipboard/);
 });
 
-test('IdleHub mantém grupos, atividade e monitoramento local', () => {
+test('IdleHub mantém grupos e remove recursos de monitoramento que causavam carga extra', () => {
   const main = read('src/main.js');
   const preload = read('src/preload.js');
   const renderer = read('src/renderer/app.js');
   assert.match(main, /groups:save/);
-  assert.match(main, /monitors:save/);
   assert.match(main, /did-fail-load/);
-  assert.match(main, /app\.getAppMetrics\(\)/);
+  assert.doesNotMatch(main, /monitors:save/);
+  assert.doesNotMatch(main, /games:diagnostics/);
+  assert.doesNotMatch(preload, /getDiagnostics/);
+  assert.doesNotMatch(renderer, /renderActivity/);
   assert.match(preload, /listGroups/);
-  assert.match(renderer, /renderActivity/);
+});
+
+test('atalhos de troca de jogo funcionam também com foco no webview', () => {
+  const main = read('src/main.js');
+  const preload = read('src/preload.js');
+  const renderer = read('src/renderer/app.js');
+  assert.match(main, /games:switch-request/);
+  assert.match(main, /input\.key === 'PageDown'/);
+  assert.match(preload, /onGameSwitchRequest/);
+  assert.match(renderer, /function switchGame\(direction\)/);
+  assert.match(renderer, /window\.drakoria\.onGameSwitchRequest/);
 });
 
 test('a identidade do produto é IdleHub', () => {
